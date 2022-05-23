@@ -1,0 +1,184 @@
+---
+title: ""
+output: html_document
+---
+
+```{css style settings, echo = FALSE}
+blockquote {
+    font-size: 14px;
+}
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.width=6, fig.height=4,fig.align = "center")
+```
+
+### Monitoria 6 - MQO Multiplo propriedades estatisticas: *Valor esperado*.
+
+Nome: Lucas Martins de Farias Fernandes  
+Email: Lucasmffernandes@gmail.com  
+
+----
+
+```{r echo=TRUE, message=FALSE, warning=FALSE,results = 'hide'}
+#setup
+library(tidyverse)
+library(wooldridge)
+```
+
+----  
+
+#### **1. O valor esperado dos estimadores de MQO.**
+
+Na análise da regressão simples, garantido as hipóteses de gauss markov, deduzimos que os estimadores do MQO são não viesados e eficientes. Veremos nesse capítulo como a inclusão de novas variáveis na regressão afetam o viés do modelo. Para isso, deve-se considerar as seguintes hipóteses:
+
+---
+  
+**1. Linear nos parâmetros.**
+  
+>O modelo na população pode ser escrito como
+>
+$y = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + ... + \beta_k x_k + u$
+>
+>em que $\beta_0,\beta_1,...,\beta_k$ são os parâmetros desconhecidos (constantes) de interesse, e u é um erro aleatório não observável ou um termo de perturbação aleatória. 
+  
+---
+  
+**2. Amostragem aleatória.**
+
+>Temos uma amostra aleatória de n observações ${(x_{i1},x_{i2},...,x_{ik},y_i): i = 1,2,...,n}$, do modelo populacional descrito pela hipótese 1. 
+  
+---
+  
+As duas primeiras hipóteses são extensões diretas das hipóteses que fizemos no modelo de regressão simples, a próxima hipótese muda um pouco. Para garantir que as estimativas do MQO são bem definidas, devemos garantir a validade da hipótese 3: 
+  
+  
+---
+  
+**3. Colinearidade não perfeita.**
+
+>Na amostra (e, portanto, na população), nenhuma das variáveis independentes é constante, **e não há relações lineares exatas entre as variáveis independentes**
+  
+---
+
+A novidade, em relação a regressão simples, está na segunda parte da hipótese. O modelo de MQO é incapaz de encontrar estimativas bem definidas quando uma variável independente for combinação linear exata de outra(s) variável. Isso não quer dizer que não possam ser correlacionadas, apenas não podem ser correlacionadas perfeitamente. Se isso ocorre, dizemos que o modelo sofre de colinearidade perfeita e não pode ser estimado por MQO.
+
+&nbsp;
+&nbsp;
+
+---
+
+#### Exemplos de colinearidade perfeita
+
+> Um exemplo simples é quando incluímos uma variável independente que é múltipla de outra variável já inclusa no modelo:
+
+```{r error=TRUE}
+dados_wage <- wooldridge::wage1
+
+# O modelo especificado não é valido. O R, nesse caso, retorna um erro na hora de gerar a regressão. A função try permite que o documento seja criado, mesmo com o erro.   
+
+try(lm(wage ~ educ + exper + 2*exper,data = dados_wage))
+```
+
+> Nesse caso, o R nem consegue calcular a regressão. Outro exemplo ocorre quando uma variável independente pode ser expressa como uma função linear exata de duas ou mais das outras variáveis independestes:
+
+```{r}
+dados_vote <- wooldridge::vote1 %>% 
+  select(voteA,expendA,expendB) %>% 
+  mutate(expendtotal = expendA + expendB) 
+
+lm(voteA ~ expendA + expendB + expendtotal,data = dados_vote) %>% summary()
+```
+
+> Cabe ao econometrista o cuidado na inclusão de variáveis para que não ocorre colinearidade perfeita. Porém, há casos em que podemos quebrar a terceira hipótese mesmo sem incluir variáveis perfeitamente correlacionadas. Isso ocorre quando a amostra for muito pequena em relação ao número de parâmetros incluídos no modelo. Dado uma amostra n, a hipótese 3 não se sustenta quando $n < k + 1$.
+
+---
+
+&nbsp;
+&nbsp;
+  
+  
+A última e mais importante hipótese que precisamos para garantir a ausência de viés é extensão direta do MQO:
+
+---
+  
+**4. Média condicional zero.**
+
+>O erro u tem um valor esperado igual a ero, dados quaisquer valores das variáveis independentes. Formalizando:
+>
+$E(u|x_1,x_2,...,x_k) = 0$
+  
+---
+
+A hipótese 4 pode ser violada quando especificamos mal nosso modelo. Como, por exemplo, se usarmos o nível de uma variável quando, na verdade, ela é especificada em log na população, ou quando omitimos uma variável que está presente no modelo populacional.  
+
+Sob as quatro hipóteses apresentadas, os estimadores de MQO múltiplo são não viesados, assim como no caso da regressão simples. Formalizando:
+
+---
+  
+**Inexistência de viés de MQO.**
+
+Sob as hipóteses 1 a 4,
+
+$E(\hat{\beta_j}) = \beta_j, \  \  \   j = 0 ,1,...,k$
+
+Para qualquer valor do parâmetro populacional, $\beta_j$. Em outras palavras, os estimadores de MQO são estimadores não viesados dos parâmetros da população.
+
+  
+---
+
+&nbsp;
+&nbsp;
+
+#### **2. Análise de má-especificação.**
+
+Vimos que ao especificar mal uma regressão podemos, em alguns casos, quebrar a 4 hipótese. De fato, se não incluímos uma variável no modelo ela será capturada pelo resíduos. Se a variável omitida faz parte do modelo populacional e, portanto, afeta a variável dependente, a quarta hipótese não se sustenta. Veremos adiante o impacto da má especificação pelo lado da subespecificação, quando omitimos uma variável explicativa, e da superespecificação, quando incluímos uma variável irrelevante.   
+
+&nbsp;
+
+##### **2.1 Inclusão de variáveis irrelevantes.**
+
+A inclusão de uma variável irrelevante acontece quando uma (ou mais) das variáveis independentes está incluída na regressão, mesmo sem ter efeito parcial sobre y. Em outras palavras, a variável incluída tem coeficiente populacional igual a zero. Vejamos um exemplo, suponha que o modelo populacional seja definido da seguinte forma:
+
+$y = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + u$
+
+Porém, ao estimar nosso modelo, adicionamos a ele uma variável que não está no modelo populacional:
+
+$\hat{y} = \hat{\beta_0} + \hat{\beta_1} x_1 + \hat{\beta_2} x_2 + \hat{\beta_3} x_3$
+
+Nesse caso, $x_3$ não possui efeito sobre y após controlado $x_1$ e $x_2$, ou seja, o coeficiente $\beta_3$ é igual a zero, logo a variável $x_3$ é irrelevante e não deveria ter sido incluída. Importante notar que a super especificação do modelo não viola a hipótese 4 de fato. Com isso, como o estimador será não viesado, o valor esperado de um coeficiente não relevante será nulo, ou seja, $E(\hat{\beta_3} = 0)$. Portanto, a inclusão de variáveis irrelevantes não afeta o viés. Porém, ainda assim, deve-se tomar cuidado, pois a superespecificação pode aumentar a variância dos estimadores.
+
+&nbsp;
+
+##### **2.2 Omissão de variáveis relevantes.**
+
+Suponha agora que estimamos o modelo sem a variável $x_2$, que é relevante. Ou seja, regredimos:
+
+$\hat{y} = \hat{\beta_0} + \hat{\beta_1} x_1$
+
+Nesse caso, a variável $x_2$ passa a ser capturada pelos resíduos da regressão. Dessa forma, se $x_2$ for correlacionado na amostra com $x_1$, ou com qualquer variável no modelo, violamos a 4ª hipótese e, portanto, a estimativa será viesada.
+
+A direção do viés dependerá do sinal do coeficiente e se as variáveis apresentam correlação positiva ou negativa, como pode ser visto no quadro:
+
+```{r echo=FALSE}
+tibble(" " = c("$\\beta_2 > 0$","$\\beta_2 < 0$"),
+       "$Corr(x_1,x_2) > 0$" = c("Viés positivo","Viés negativo"),
+       "$Corr(x_1,x_2) < 0$" = c("Viés negativo","Viés positivo")) %>% 
+  knitr::kable()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

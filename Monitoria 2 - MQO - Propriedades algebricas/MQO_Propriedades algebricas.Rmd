@@ -1,0 +1,463 @@
+---
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+```{css style settings, echo = FALSE}
+blockquote {
+    font-size: 14px;
+}
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.width=6, fig.height=4,fig.align = "center")
+
+```
+
+### Monitoria 2 - MQO - Propriedades algébricas
+
+Nome: Lucas Martins de Farias Fernandes  
+Email: Lucasmffernandes@gmail.com  
+
+----
+
+#### **1. Tidyverse.**
+
+A principal biblioteca para importação, tratamento e visualização de dados no R é chamada de ["tidyverse"](https://www.tidyverse.org/). Primeiro, precisamos instalá-lo, para isso, basta passar o nome da biblioteca para a função install.packages(). Terminado a instalação, podemos ativá-lo com a função library():
+
+
+```{r}
+#install.packages("tidyverse")
+library(tidyverse)
+```
+
+&nbsp;
+&nbsp;
+
+#### **1.1 Importação.**
+
+* **CSV**:
+
+Para importar um csv (comma separated values), utilizaremos o pacote readr do tidyverse:
+
+Primeira vamos definir o working directory, para a pasta onde os dados estão salvos:
+
+```{r}
+setwd("C:/Users/Lucas/Google Drive/Econometria - Aulas/Aulas/Aula 2 - MQO - Propriedades algebricas")
+#Verificando o wd:
+getwd()
+```
+
+Feito isso, podemos importar nossos dados:
+
+```{r}
+dados <- read_csv("um_csv.csv")
+head(dados)
+```
+
+&nbsp;
+&nbsp;
+
+* **Excel** (.xls ou .xlsx):
+
+Para importar arquivos de Excel utilizamos outro pacote, o “readxl”:
+
+Instalando e ativando o pacote:
+
+```{r message=FALSE, warning=FALSE}
+#install.packages("readxl")
+library(readxl)
+```
+
+
+Importando dados:
+```{r}
+dados <- read_xls("um_excel.xls")
+head(dados)
+```
+
+&nbsp;
+
+---
+
+> Uma vez carregados, é sempre interessante ver a estrutura dos dados para certificar que o R importou corretamente. Fazemos isso com a função str():
+
+```{r}
+str(dados)
+```
+
+> Exemplo de dados que não foram importados corretamente:
+
+```{r}
+dados_errados <- read_csv2("um_csv.csv")
+str(dados_errados)
+```
+
+> Nesse caso, utilizamos a função read_csv2(), que serve para dados delimitados por ";". Como nossos dados são delimitados por virgula, o R não identificou as colunas corretamente.
+> A função read_csv2() é bastante útil para dados de fontes brasileiras. Como nós usamos "," para delimitar casas decimais, na maioria dos casos os csv's de fontes nacionais serão delimitados por ";".
+
+---
+
+&nbsp;
+&nbsp;
+
+#### **1.1 Tratamento.**
+
+* **Filtro - filter(...)**
+
+Com os dados em mãos, podemos partir para o tratamento. A coluna "indus" indica se a firma faz parte do setor industrial, suponha que queremos estudar apenas as firmas desse setor. Para isso, podemos utilizar a função filter. A função recebe os dados no primeiro argumento e a condição, ou condições, no segundo. Nesse caso, queremos as linhas em que indus == 1. 
+
+```{r}
+dados_indus <- filter(dados,indus == 1)
+head(dados_indus)
+```
+
+&nbsp;
+
+* **Subsetting - select(...)**
+
+Suponha que queremos utilizar apenas as colunas roe e salary. Nesse caso, convém selecionar apenas as colunas que iremos trabalhar. Com o tidyverse, fazemos isso com a função select(). Igual função filter, o select recebe os dados no primeiro argumento e um vetor com o nome das colunas que queremos:
+
+
+```{r}
+dados_indus <- select(dados_indus,c("roe","salary"))
+head(dados_indus)
+```
+
+&nbsp;
+
+* **Transformação / cálculo - mutate(...)**
+
+Vamos supor agora que queremos criar ou mutar uma coluna, que contenha o log natural dos salários. Podemos fazer isso com a função mutate(...). Igual função filter, o mutate recebe os dados no primeiro argumento e a operação/função no segundo:
+
+
+```{r}
+
+dados_indus <- mutate(dados_indus,ln_salario = log(salary))
+head(dados_indus)
+```
+
+&nbsp;
+&nbsp;
+
+#### **1.2 PIPE (%>%).**
+
+O PIPE é um novo operador adicionado pelo pacote magrittr, presente no tidyverse. Ele permite passar um objeto a uma função de forma encadeada, o que torna o código mais limpo. Ele faz isso pegando o objeto da esquerda e jogando no primeiro argumento da função a direita. Vejamos um exemplo:
+
+
+```{r}
+# Para escrever o PIPE, basta usar o atalho: ctrl + shift + m
+10 %>% log()
+```
+
+O "." permite escolher para qual argumento iremos passar o objeto:
+
+```{r}
+10 %>% log(1,base = .)
+```
+Com isso, vamos escrever novamente o tratamento que fizemos anteriormente, utilizando o pipe:
+
+```{r echo=TRUE, message=FALSE}
+dados <- read_csv("um_csv.csv") %>% 
+  filter(indus == 1) %>% 
+  select(c("roe","salary")) %>% 
+  mutate(ln_salario = log(salary))
+```
+
+```{r include=TRUE}
+head(dados)
+```
+
+&nbsp;
+&nbsp;
+
+#### **2. Regressão simples - Estimando coeficientes**  \
+
+Supondo que queremos estudar a relação entre os salários dos CEOs (salary) e o retorno médio sobre o património líquido (roe). Para isso, podemos estimar a seguinte regressão simples:
+
+$salary = \beta_{0} + \beta_{1}roe + u$
+
+Vamos importar novamente os dados e selecionar as colunas que vamos utilizar:
+
+```{r warning=TRUE, include=TRUE,message=FALSE}
+dados <- read_csv("um_csv.csv") %>% 
+  select(c("salary","roe"))
+```
+
+O primeiro passo em qualquer análise econométrica é a observação dos dados. Para isso, utilizaremos o pacote ggplot:
+
+```{r}
+#help(ggplot)
+```
+
+Para plotar primeiro criamos um objeto ggplot, passando os dados e o "aesthetics", que indica as variáveis que queremos plotar. Nesse caso, queremos plotar um gráfico de dispersão com "roe" no eixo x e "salary" no y:
+
+```{r}
+# passamos então os dados para o primeiro argumento com o pipe, e o aesthetics dentro da função aes(), indicando o eixo de cada variável:
+dados %>% 
+  ggplot(aes(x = roe,y = salary)) 
+```
+
+O gráfico saiu em branco pois ainda não informamos qual tipo de gráfico nós queremos. Precisamos adicionar ao plot um "geom", que irá indicar seu tipo. Como queremos um gráfico de dispersão, usaremos o geom_point():
+
+```{r}
+dados %>% 
+  ggplot(aes(x = roe,y = salary)) +
+  geom_point()
+```
+
+Ao visualizar os dados, podemos observar que apenas três observações apresentam salário maior que 5000. Para melhorar a regressão e facilitar a visualização, iremos filtrar esses outliers da nossa amostra:
+
+```{r}
+dados <- dados %>% 
+  filter(salary < 5000)   # Filtrando apenas observações onde salary < 5000
+
+dados %>% 
+  ggplot(aes(x = roe,y = salary)) +
+  geom_point()
+```
+&nbsp;
+
+Satisfeitos com os dados, partimos para a estimação do nosso modelo. As fórmulas a seguir nos dão as estimativas dos parâmetros:  
+
+$\hat{\beta_{0}} = \bar{y} - \hat{\beta_{1}}\bar{x}$  
+
+$\hat{\beta_{1}} = \frac{\sum^n_{i=1} (x_{i} - \bar{x})(y_{i} - \bar{y})}{\sum^n_{i=1}(x_{i} - \bar{x})^2} = \frac{Cov(x,y)}{Var(x)}$  
+
+As fórmulas podem ser derivadas a partir do método dos momentos ou do MQO, os dois métodos chegam no mesmo resultado de formas diferentes. A derivação do método dos momentos está na página 28 do Wooldridge.  
+
+Com isso, estimamos:
+```{r}
+#Para facilitar, podemos nomear as variáveis no nosso environment fazendo um subsetting:
+salary <- dados[,"salary",drop = TRUE]
+roe <- dados[,"roe",drop = TRUE]
+
+#Estimando a inclinação:
+cov_xy <- cov(roe,salary)
+var_x <- var(roe)
+hat_beta_1 <- cov_xy/var_x
+
+#Intecepto:
+hat_beta_0 <- mean(salary) - hat_beta_1*mean(roe)
+
+as_vector(c("hat_beta0" = hat_beta_0,"hat_beta1" = hat_beta_1))
+```
+
+Portanto, a partir da amostra utilizada, a reta da regressão que relaciona os salários e roe é dada por:  
+
+$\widehat{salary} = 878.16147 + 15.30312(roe)$  
+
+Plotando a reta estimada:  
+```{r}
+plot1 <- dados %>% 
+  ggplot(aes(y = salary,x = roe)) +
+  geom_point() +
+  geom_abline(intercept = hat_beta_0,slope = hat_beta_1,color = "red")
+
+plot1
+```
+&nbsp;
+&nbsp;
+
+#### **3. Interpretando os coeficientes.** \
+
+Quando roe = 0, a estimativa de salário é igual ao intercepto, $878.16.  Podemos calcular também o salário médio dado uma variação de roe:  
+
+$\widehat{\Delta salary} = 15.30312(\Delta roe)$  
+
+Ou seja, se roe varia em 1, o salário médio dos CEOs aumenta em $15.30. 
+
+```{r}
+# Escrevendo uma função que calcule o salário para qualquer valor de roe:
+salary_ceo <- function(roe){
+    hat_beta_0 + hat_beta_1*roe
+}
+
+roe_x <- c(1,2,3)
+
+salary_ceo(roe_x)
+```
+
+&nbsp;
+&nbsp;
+
+#### **4. Valores estimados(Fitted values) e resíduos** \ 
+
+* **Valores estimados**,$\hat{Y_i}$
+
+Os valores estimados são dados pela seguinte formula:  
+
+$\widehat{salary}_i = \beta_{0} + \beta_{1}roe_{i}$  
+
+
+```{r}
+# Calculando os valores estimados:
+dados <- tibble(salary,roe) %>%   # Criando um data_frame com as variaveis salary e roe
+  mutate(valores_estimados = hat_beta_0 + hat_beta_1*roe) 
+
+# Poderiamos usar aqui a função escrita anteriomente:
+dados_2 <- tibble(salary,roe) %>%   
+  mutate(valores_estimados = salary_ceo(roe)) 
+
+dados
+```
+
+Plotando valores estimados:  
+```{r}
+dados %>% 
+  ggplot(aes(y = salary,x = roe)) +
+  geom_point() +
+  geom_point(aes(y = valores_estimados,x = roe, color = "red")) +
+  guides(color = "none")
+```
+
+* **Resíduos:**,$\hat{u_i}$  \
+
+$\hat{u} = y_{i} - \hat{y}_{i}$
+
+```{r}
+dados %>% 
+  ggplot(aes(y = salary,x = roe)) +
+  geom_segment(aes(xend = roe, yend = valores_estimados,alpha = 0.1)) +
+  geom_point() +
+  geom_point(aes(y = valores_estimados,x = roe, color = "red")) +
+  guides(color = "none",alpha = "none")
+```
+
+
+```{r}
+# Calculando resíduos:
+dados <- dados %>% 
+  mutate(uhat = salary - valores_estimados)
+
+dados
+```
+
+&nbsp;
+&nbsp;
+
+#### **5. Propriedades do MQO Simples.**  
+
+1. O somatório, ou a média amostral, dos resíduos do MQO é zero:  
+
+```{r}
+uhat <- dados[,"uhat",drop = TRUE]
+sum(uhat)
+```
+
+2. A covariância amostral entre os regressores(Variáveis independentes, x) e os resíduos, também é nula:  
+
+```{r}
+cov(roe,uhat)
+```
+
+Analogamente, a covariância amostral entre os valores estimados,$\hat{y}$, e os resíduos é também igual a 0.  
+
+```{r}
+fitted <- dados[,"valores_estimados",drop = TRUE]
+cov(fitted,uhat)
+```
+
+3. média amostral de $y_{i}$ é igual a média amostral dos valores estimados,$\hat{y_{i}}$
+
+```{r}
+as_vector(c("Y" = mean(salary),"Yhat" = mean(fitted)))
+```
+
+&nbsp;
+&nbsp;
+
+#### **6. Qualidade de ajuste.**  \
+
+A propriedades descritas nos permites separar o modelo MQO em duas partes:  
+1. Uma parte explicada, correspondente aos valores estimados, que depende de x  
+2. Uma parte não explicada, correspondente aos resíduos, que independe de x.  
+
+
+* Soma dos quadrados explicada:  \
+$SQE = \sum^n_{i=1}(\hat{y_{i}} - \bar{y})^2$
+
+```{r}
+SQE <- sum((fitted - mean(salary))^2)
+SQE
+```
+
+* Soma dos quadrados dos resíduos:  \
+$SQR = \sum^n_{i=1}\hat{u_{i}}^2$
+
+```{r}
+SQR <- sum(uhat^2)
+SQR
+```
+* Soma dos quadrados total:  \
+$SQT = \sum^n_{i=1}(y_{i} - \bar{y})^2$
+
+```{r}
+SQT <- sum((salary - mean(salary))^2)
+SQT
+```
+
+A variação total em $y$ pode ser expressa como a soma da variação explicada e a variação não explicada:
+
+$SQT = SQE + SQR$
+
+```{r}
+as_vector(c("SQT" = SQT , "SQE + SQR" = SQE + SQR))
+
+```
+
+Essa decomposição nos permite calcular o quanto da variação total presente em $y_{i}$ conseguimos explicar a partir da variação total em $\hat{y_{i}}$:
+
+$R^2 \equiv SQE/SQT = 1 - SQR/SQT$
+
+Calculando:
+```{r}
+rsquared <- 1 - SQR/SQT
+rsquared
+```
+
+&nbsp;
+&nbsp;
+
+##### **7. Função LM().**
+
+Rodando a mesma regressão que estimamos anteriormente com a função lm():
+
+```{r message=FALSE, warning=FALSE}
+mod_lm <- lm(salary ~ roe,data = dados)
+mod_lm %>% summary()
+```
+
+O primeiro argumento da função corresponde a fórmula. A esquerda do "~" passamos a variável dependente(y) a direita passamos as variáveis independentes(x). Argumento data recebe nossa amostra.
+
+A regressão cria uma lista onde estão presentes os valores estimados, resíduos, coeficientes entre outras medidas estimadas. A função summary imprime no console as informações na lista em uma tabela. Também podemos acessar essas informações fazendo um subsetting ou utilizando as funções fitted() ou resid().
+
+* Coeficientes
+
+```{r}
+mod_lm[["coefficients"]]
+```
+
+* Resíduos
+
+```{r echo=TRUE,results='hide'}
+#  mod_lm[["residuals"]] ou mod_lm$residuals ou resid(mod_lm)
+
+resid(mod_lm) 
+```
+
+* Valores estimados
+
+```{r echo=TRUE,results='hide'}
+#  mod_lm[["fitted.values"]] ou mod_lm$fitted.values ou fitted(mod_lm)
+
+fitted(mod_lm) 
+```
+
+
+
+
+

@@ -1,0 +1,363 @@
+---
+title: ""
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.width=6, fig.height=4,fig.align = "center")
+```
+
+### Monitoria 3 - MQO - Unidades de medida, formas funcionais e propriedades estatísticas
+
+Nome: Lucas Martins de Farias Fernandes  
+Email: Lucasmffernandes@gmail.com  
+
+----
+
+```{r echo=TRUE, message=FALSE, warning=FALSE,results = 'hide'}
+#setup
+library(tidyverse)
+library(wooldridge)
+library(stargazer)
+library(gridExtra)
+```
+
+----  
+
+#### **1. Amostra**  
+
+```{r}
+# Salvando dados no env
+dados <- wooldridge::ceosal1 %>% 
+  as_tibble() %>% 
+  filter(salary < 5000)
+```
+
+&nbsp;  
+
+#### **2. Unidades de medida e forma funcional.**  
+
+Nesse tópico veremos o impacto da unidade de medida e a forma funcional da regressão sobre os coeficientes que estimamos.
+
+&nbsp;
+
+##### **2.1 Efeito de mudanças nas unidades de medida.**  
+
+
+```{r}
+mod_1 <- lm(salary ~ roe,data = dados)
+mod_1 %>% summary()
+```
+
+Da regressão temos:
+
+$\widehat{salary} = 878.161 + 15.3*(roe)$
+
+Interpretando o coeficiente podemos calcular que, se roe = 0, o salário médio é igual ao intercepto, 878.16. Além disso, para um aumento de uma unidade de roe o salário aumenta, em média, 15.3.
+
+Mas o que acontece se mudarmos a unidade de medida ou a forma funcional do nosso modelo?
+A resposta é que os coeficientes e a forma que interpretamos os resultados mudarão.
+
+No exemplo anterior medimos salário em milhares de dólares. Se ao invés disso, quisermos medir o salário em dólares?
+
+
+```{r}
+#Criando nova coluna em reais
+dados <- dados %>% 
+  select(salary,roe) %>% 
+  mutate(salary_dolares = salary * 1000)
+
+mod_2 <- lm(salary_dolares ~ roe,data = dados)
+mod_2 %>% summary()
+```
+
+Podemos observar, portanto, que para uma mesma amostra os valores dos coeficientes são diferentes. Vale destacar, porém, que mudanças na unidade de medida não tem impacto sobre a variação amostral. Logo, nesse caso, o $R^2$ não muda.
+  
+&nbsp;
+
+##### **2.2 Incorporação de não linearidade na regressão simples.**  
+
+Além da unidade de medida, devemos nos atentar a forma funcional da regressão. Até o momento assumimos relações lineares (nos parâmetros) em nossos modelos de regressões simples. Dessa forma, no modelo feito anteriormente, o efeito de roe sobre o salário é constante, e será sempre igual ao $\beta_1$.
+
+Na forma funcional nível-nível não conseguimos capturar relações que sejam marginalmente decrescentes ou crescentes por exemplo. Para melhor estimar essas relações, podemos alterar a forma funcional do nosso modelo, utilizando o log() natural.
+
+---
+
+**1. Modelo log_nivel**  
+```{r}
+mod_log_nivel <- lm(log(salary) ~ roe,data = dados)
+mod_log_nivel %>% summary()
+```
+
+A interpretação do coeficiente agora é outra. O coeficiente de roe, $\beta_1$, é lido como uma porcentagem constante. A variação sobre o salario será dada por:
+
+$\% \Delta salary = (100.\beta_1)roe$
+
+Ou seja, um aumento de 1 uma unidade de roe leva a um aumento de 1.35% do salario. 
+
+Nesse caso, como a variação percentual é constante para qualquer valor de roe, a variação em salary aumenta para cada unidade de roe. Podemos observar essa relação no gráfico a seguir.
+
+---
+
+```{r}
+#modelo nivel nivel
+b0_nn <- mod_1$coefficients["(Intercept)"]
+b1_nn <- mod_1$coefficients["roe"]
+
+#Modelo log nivel
+b0_ln <- mod_log_nivel$coefficients["(Intercept)"]
+b1_ln <- mod_log_nivel$coefficients["roe"]
+
+
+plots <- tibble(roe = 1:200) %>% 
+  mutate(salary_nn = b0_nn + b1_nn*(roe),
+         salary_ln = exp(b0_ln + b1_ln*(roe))) %>% 
+  ggplot(aes(x = roe)) 
+
+grid.arrange(
+  plots + geom_line(aes(y = salary_nn)) + ylab("Modelo Nível-Nível") + xlab(""),
+  plots + geom_line(aes(y = salary_ln))+ ylab("Modelo Log-Nível"),
+  ncol = 1
+)
+
+```
+
+---
+
+**2. Modelo log-log.**  
+
+```{r}
+mod_log_log <- lm(log(salary) ~ log(roe),data = dados)
+mod_log_log %>% summary
+
+```
+
+No modelo log-log obtemos uma estimativa em termos de elasticidade. Ou seja, uma variação de 1% em roe leva a uma variação de 0.15% de salary. Logo:
+
+$\% \Delta y = \beta_{1} \% \Delta x$
+
+---
+
+Resumo das formas funcionais logaritimicas:
+
+```{r echo=FALSE}
+tibble(
+  Modelo = c("Nível-Nível","Nível-log","Log-Nível","Log-log"),
+  "Variavel dependente" = c("y","y","log(y)","log(y)"),
+  "Variavel independente" = c("x","log(x)","x","log(x)"),
+  "Interpretaçao $\\beta_{1}$" = c("$\\Delta y = \\beta_{1}\\Delta x$",
+                          "$\\Delta y = (\\beta_{1}/100)\\% \\Delta x$",
+                          "$\\% \\Delta y = (100 \\beta_{1}) \\Delta x$",
+                          "$\\% \\Delta y = \\beta_{1} \\% \\Delta x$") 
+) %>% 
+  knitr::kable()
+```
+&nbsp;
+&nbsp;
+
+#### **3. Valores esperados e variâncias dos estimadores.**  
+
+Até então assumimos as seguintes hipóteses para estimar os coeficientes do MQO:
+
+---
+
+**1. Linear nos parâmetros.**
+
+No modelo populacional, a variável dependente y está relacionada à variável independente x e ao erro
+u como:
+
+$y = \beta_{0} + \beta_{1} x + u$
+
+em que $\beta_{0}$ e $\beta_{1}$ são os parâmetros de intercepto e de inclinação populacionais, respectivamente. 
+
+---
+
+**2. Amostragem aleatória.**
+
+Podemos usar uma amostra aleatória de tamanho $n, \{(x_{i},y_{i}): i =1,2,...,n\}$ proveniente do modelo populacional descrito pela hipótese 1.
+
+Com isso a equação populacional descrita na hipótese 1 pode ser definida em termos da amostra aleatória como:
+
+$y = \beta_{0} + \beta_{1} x_{i} + u_{i},onde: \  i =1,2,...,n$
+
+---
+
+**3. Média condicional zero.**
+
+O erro u tem valor esperado nulo, dado qualquer valor da variável explicativa, Logo:
+
+$E(u|x) = E(u) = 0$
+
+---
+
+&nbsp;
+&nbsp;
+
+##### **3.1 Inexistência de viés.**
+
+A partir das três hipóteses apresentadas é possível demonstrar que os estimadores do MQO são não viesados. Em outras palavras, os estimadores do MQO podem errar pontualmente, mas, na média, eles serão iguais. Formalizando: 
+
+$E(\hat{\beta_0}) = \beta_0  \ \ , \ \ E(\hat{\beta_1}) = \beta_1$
+
+Podemos demonstrar esse teorema de forma prática:
+
+Postulando uma regressão populacional:
+
+$y = -2 + 3.5x + u$
+
+```{r}
+# Simulando dados
+N <- 100000
+X <- runif(N, min = 0, max = 20)
+u <- rnorm(N, sd = 10)
+
+# Calculando os valores de Y
+Y <- -2 + 3.5 * X + u
+population <- tibble(X, Y)
+
+# Repetições
+reps <- 10000
+
+# Inicializando matriz que registra coeficientes
+fit <- matrix(ncol = 2, nrow = reps)
+
+# Rodando 10000 modelos a partir de amostras aleatórias da nossa população.
+for (i in 1:reps){
+  
+ sample <- population[sample(1:N, 100),]
+ fit[i, ] <- lm(Y ~ X, data = sample)$coefficients
+ 
+}
+
+# Salvando resultados em um data_frame
+fit <- fit %>% 
+  as.data.frame() %>% 
+  rename("hat_beta0" ="V1",
+         "hat_beta1" = "V2")
+
+#Calculando a media dos parametros estimados
+mean_hat_beta_0 <- mean(fit[,"hat_beta0",drop = TRUE])
+mean_hat_beta_1 <- mean(fit[,"hat_beta1",drop = TRUE])
+
+#Calculando a variancia
+var_hat_beta_0 <- var(fit[,"hat_beta0",drop = TRUE])
+var_hat_beta_1 <- var(fit[,"hat_beta1",drop = TRUE])
+
+#Observando os valores:
+as_vector(c("E(hat_beta_0)" = mean_hat_beta_0,
+          "E(hat_beta_1)" = mean_hat_beta_1))
+```
+
+Através dessa simulação conseguimos também observar a distribuição dos coeficientes
+
+```{r message=FALSE, warning=FALSE}
+fit %>% 
+  ggplot(aes(x = fit[,"hat_beta0"])) +
+  geom_histogram(aes(y =..density..)) +
+  stat_function(fun = dnorm,args = list(mean = mean_hat_beta_0, sd = sqrt(var_hat_beta_0)),aes(color = "darkred")) +
+  geom_vline(xintercept = mean_hat_beta_0) +
+  guides(color = FALSE) +
+  ylab("") 
+```
+&nbsp;
+
+---
+
+> **Exemplo de correlação espúria. Wooldridge Pg 51, Ex 2.12.**
+>
+> Quando u contém valores que afetam y e são correlacionados com x, podemos achar uma relação entre y e x viesada. Nesse caso, nossa estimativa 
+> está contaminada pelos fatores presentes nos resíduos. 
+>
+>
+> $math10 = \beta_0 + \beta_1 lnchprg + u$
+>
+> math10 corresponde a porcentagem de alunos do primeiro ano do ensino médio aprovados em um exame de matemática. lnchprg corresponde ao porcentual de estudantes que estão aptos para participar > do programa de merenda escolar. Intuitivamente, esperamos que o impacto do programa seja positivo 
+> sobre a porcentagem de alunos aprovados. Porém, como veremos na regressão, esse não é o resultado encontrado:
+
+```{r}
+mod_espurio <- lm(math10 ~ lnchprg,data = meap93)
+mod_espurio %>% summary
+```
+
+> O coeficiente de lnchprg é negativo, indicando que o programa piora o rendimento dos alunos. Esse resultado pode ser viesado devido a um problema de má especificação do modelo. Ou seja, 
+> existem termos correlacionados a x dentro dos residuos da regressão que deveriam estar explícitos no nosso modelo.
+
+---
+
+##### **3.3 variâncias dos estimadores.**  
+
+Anteriormente calculamos a variância dos coeficientes através dos resultados das 10.000 regressões que fizemos. Obviamente que na prática isso não é possível. Para que seja possível estimar a variância adotaremos mais uma hipótese:
+
+---
+
+**4. Homoscedasticidade.**  
+
+O erro u tem a mesma variância, dado qualquer valor da variavel explicativa, x. Logo:
+
+$Var(u|x) = \sigma^2$
+
+---
+
+Com isso, conseguimos calcular a variância dos parâmetros:
+
+$Var(\hat{\beta_1}) =\frac{\sigma^2}{SQT_x}$
+
+$Var(\hat{\beta_0}) = \frac{\sigma^2 n^-1 \sum_{i = 1}^n{x^2_i}}{\sum_{i = 1}^n{(x_i-\bar{x})^2}} = \frac{\sigma^2 n^-1 \sum_{i = 1}^n{x^2_i}}{SQT_x}$
+
+&nbsp;
+
+##### **3.3 Estimação da variância do erro.**  
+
+$\sigma^2$ ainda é desconhecido. Para calcular a variância devemos também estima-lo, para isso utilizamos o estimador não viesado de sigma:
+
+$\sigma^2 = \frac{SQR}{(n-2)}$
+
+Temos agora todas as informações necessárias para calcular as variâncias dos coeficientes:
+
+```{r}
+#Calculando Soma dos quadrados dos residuos
+SQR <- sum(resid(mod_1)^2)
+
+#Calculando sigma^2
+sigma_sq <- SQR / (nrow(dados) - 2)
+sigma_sq 
+
+# Erro padrão 
+sigma_sq %>% sqrt()
+```
+
+**1. Variancia de $\hat{\beta_1}:$**  
+
+```{r}
+roe <- dados[,"roe",drop = TRUE]
+SQT_x <- sum((roe - mean(roe))^2)
+var_hbeta_1 <- sigma_sq/SQT_x
+var_hbeta_1
+
+#erro padrao
+var_hbeta_1 %>% sqrt()
+```
+
+**2. Variancia de $\hat{\beta_0}:$**  
+
+```{r}
+n <- nrow(dados)
+
+var_hbeta_0 <- sigma_sq*(n^-1)*sum(roe^2) / SQT_x
+var_hbeta_0
+
+#erro padrao
+var_hbeta_0 %>% sqrt()
+```
+
+**Comparando valores que calculamos com o modelo:**  
+
+```{r message=FALSE, warning=FALSE}
+mod_1 %>% summary()
+```
+
+
+
+
+

@@ -1,0 +1,184 @@
+---
+title: ""
+output: html_document
+---
+
+```{css style settings, echo = FALSE}
+blockquote {
+    font-size: 14px;
+}
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.width=6, fig.height=4,fig.align = "center")
+```
+
+### Monitoria 7 - MQO Múltiplo propriedades estatísticas: *Variância*.
+
+Nome: Lucas Martins de Farias Fernandes  
+Email: Lucasmffernandes@gmail.com  
+
+----
+
+```{r echo=TRUE, message=FALSE, warning=FALSE,results = 'hide'}
+#setup
+library(tidyverse)
+library(wooldridge)
+```
+
+----  
+
+#### **1. A variância dos estimadores de MQO.**
+
+As hipóteses que fizemos até então nos dizem a respeito do valor esperado dos coeficientes da regressão múltipla. Garantindo-as, os coeficientes estimados na regressão múltipla serão não viesados. Buscaremos agora definir como se comporta a variância, ou seja, estudaremos o quanto os coeficientes do MQO amostrais se afastam do valor populacional. Para que isso seja feito, adicionamos uma 5ª hipótese, assim como na regressão simples:
+
+---
+
+**4. Homoscedasticidade.**
+
+> O erro u tem a mesma variância dada a quaisquer valores das variáveis explicativas. Em outras palavras,
+$Var(u|x_1,...,x_k) = \sigma^2$
+  
+---
+
+A hipótese 5 significa que a variância do termo de erro, u, condicionado às variáveis independestes, x, é sempre a mesma para todas as combinações de resultados das variáveis explicativas. Por exemplo, supondo a regressão:
+
+$wage = \beta_0 + \beta_1 educ + \beta_2 exper + u$
+
+A variância do erro não observado é dada por:
+
+$Var(u|educ,exper) = \sigma^2$
+
+Dessa forma, A partir de $\sigma^2$, podemos obter a variância dos coeficientes estimados, $\hat{\beta_j}$:
+
+> **Variâncias amostrais dos estimadores de inclinação de MQO.**
+>
+> Sob as hipóteses 1 a 5, condicionadas aos valores amostrais das variáveis independentes:
+>
+>$$Var(\hat{\beta_j}) = \frac{\sigma^2}{SQT_j (1-R^2_j)}$$
+>
+> para $j = 1,2,...,k$, em que $SQT_j = \sum^n_{i=1} (x_{ij} - \bar{x_j})^2$ é a variação amostral total em $x_j$, e $R^2_j$ é o R-quadrado da regressão $x_j$ sobre todas as outras variáveis independentes.
+
+&nbsp;
+&nbsp;
+
+
+#### **1.2 Multicolinearidade.**
+
+Na prática, além do viés, devemos nos preocupar também com o tamanho de $Var(\hat{\beta_j})$. Quanto maior a variância menos preciso serão os estimadores, o que traduz em testes de hipóteses menos acurados. Analisemos, portanto, os determinantes da variância e qual seus respectivos impactos sobre o seu valor:
+
+**(a) Variância do ero, $\sigma^2$**
+
+$$Var(\hat{\beta_j}) = \huge(  \normalsize\frac{\sigma^2 \LARGE\uparrow}{SQT_j (1-R^2_j)} \huge) \huge\uparrow$$
+
+Quanto maior sigma, maior será a variância dos estimadores. De fato, quanto mais ruido na equação, mais difícil será estimar o efeito parcial de qualquer uma das variáveis independentes sobre y, o que será refletido em variâncias maiores dos estimadores de inclinação de MQO. 
+
+&nbsp;
+&nbsp;
+
+**(b) Variação amostral total em $x_{ij}$, $SQT_j$.**
+
+$$Var(\hat{\beta_j}) = \huge(  \normalsize\frac{\sigma^2}{SQT_j\LARGE{\uparrow}  \normalsize (1-R^2_j)} \huge) \huge\downarrow$$
+
+Quanto maior a dispersão amostral total, menor será a variância dos estimadores. Uma forma de aumentar $SQT_j$ é aumentar o tamanho da amostra. 
+
+&nbsp;
+&nbsp;
+
+**(c) As relações lineares entre as variáveis independentes, $R^2_{j}$.**
+
+O $R^2_{j}$ é distinto do R-quadrado da regressão. $R^2_{j}$ é obtido através de uma regressão que envolve somente as variáveis independentes do modelo original, em que $x_{j}$ desempenha o papel de uma variável dependente. Portanto, quanto maior a correlação entre as variáveis independentes, mais próximo de 1 o $R^2_{j}$ estará, e maior será a variância.
+
+
+$$Var(\hat{\beta_j}) = \huge(  \normalsize\frac{\sigma^2}{SQT_j (1-R^2_j\LARGE{\uparrow}\normalsize)} \huge) \huge\uparrow$$
+
+A correlação alta entre duas ou mais variáveis independentes é chamada de **multicolinearidade**. 
+
+
+&nbsp;
+&nbsp;
+
+#### **1.3 Variância em modelos mal especificados.**
+
+A escolha de se incluir ou não uma variável particular em um modelo de regressão pode ser feita ao analisar o dilema entre viés e variância. Já vimos que a omissão de uma variável relevante introduz um viés ao modelo, mas o que acontece com a variância? supondo um modelo populacional verdadeiro, que satisfaz as hipóteses de Gauss-Markov:
+
+$y = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + u$
+
+Considerando os modelos de regressão simples e múltipla:
+
+$\hat{y} = \hat{\beta_0} + \hat{\beta_1}x_1 + \hat{\beta_2}x_2$
+
+$\tilde{y} = \tilde{\beta_0} + \tilde{\beta_1}x_1$
+
+O primeiro modelo está bem especificado, já o segundo modelo omite uma variável que está presente no modelo populacional,  se $x_2$ é correlacionado a $x_1$, os coeficientes estimados serão viesados. Antes de concluir qual modelo é o mais indicado, vejamos o que acontece com a variância:
+
+A variância do modelo de regressão múltiplo é dada por:
+
+$Var(\hat{\beta_1}) = \frac{\sigma^2}{SQT_1(1-R^2_1)}$
+
+A da regressão simples é dado por:
+
+$Var(\tilde{\beta_1}) = \frac{\sigma^2}{SQT_1}$
+
+Por causa da inclusão do termo $(1-R^2_1)$, a variância do modelo múltiplo será sempre maior que a do modelo simples. Ainda assim, mesmo com a perda de eficiência o modelo de regressão múltipla é mais indicado. Não é possível corrigir o viés sem que a variável omitida seja inclusa no modelo. Por outro lado, a perda de eficiência pode ser mitigada aumentando SQT, ou seja, aumentando a amostra utilizada.
+
+&nbsp;
+&nbsp;
+
+#### **1.4 Estimação de $\sigma^2$.**
+
+Assim como na regressão simples, utilizamos um estimador não viesado de $\sigma^2$. O estimador no caso geral da regressão múltipla dado por:
+
+$\hat{\sigma^2} = \frac{SQR}{n-k-1}$
+
+O termo $n-k-1$ representa os graus de liberdade, $gl$ do problema geral de MQO com n observações e k variáveis independentes. 
+
+Calculando $\hat{\sigma^2}$:
+
+```{r}
+dados <- wooldridge::wage1
+
+#Modelo estimado:
+mod <- lm(wage ~ educ + exper, dados)
+
+#Calculando sigma2
+sigma_hat_sq <- sum(resid(mod)^2) / (nrow(dados) - 2 - 1)
+
+# A raiz quadrada nos da o Erro padrão da regressão:
+sigma_hat <- sqrt(sigma_hat_sq)
+sigma_hat
+```
+
+Com sigma em mãos, podemos calcular o erro padrão dos $\hat{\beta_j}$, utilizando a fórmula:
+
+$ep(\hat{\beta_j}) = \frac{\hat{\sigma}}{\sqrt{n}  \ dp(x_j) \ \sqrt{1-R^2_j}}$
+
+Onde $dp(x_j) = \sqrt{n^{-1} \ \sum^n_{i = 1} (x_{ij} - \bar{x})^2}$.
+
+Calculando:
+
+```{r}
+#Calculando o erro padrão de educ
+
+educ <- dados[,"educ"]
+
+#tamanho da amostra, n:
+n <- nrow(dados)
+
+#Calculando dp_educ:
+dp_educ <- sqrt(sum((educ - mean(educ))^2)/n)
+
+#Calcuando R-quadrado da regressão educ ~ exper
+mod2 <- lm(educ ~ exper,dados)
+r2_educ_exper <- summary(mod2)[["r.squared"]]
+
+#Calculando o erro padrão:
+se_educ <-  sigma_hat / (sqrt(nrow(dados)) * dp_educ * sqrt(1-r2_educ_exper)  )
+se_educ
+```
+
+
+
+
+

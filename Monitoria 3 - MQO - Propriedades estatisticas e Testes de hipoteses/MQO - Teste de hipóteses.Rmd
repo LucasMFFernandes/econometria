@@ -1,0 +1,343 @@
+---
+title: ""
+output: html_document
+---
+
+```{css style settings, echo = FALSE}
+blockquote {
+    font-size: 14px;
+}
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.width=6, fig.height=4,fig.align = "center")
+```
+
+### Monitoria 4 - MQO - Inferência e teste de hipóteses.
+
+Nome: Lucas Martins de Farias Fernandes  
+Email: Lucasmffernandes@gmail.com  
+
+----
+
+```{r echo=TRUE, message=FALSE, warning=FALSE,results = 'hide'}
+#setup
+# install.packages('latex2exp')
+library(latex2exp)
+library(tidyverse)
+library(wooldridge)
+```
+
+----  
+
+#### **1. Distribuições amostrais dos estimadores de MQO.**
+
+As distribuições amostrais dos coeficientes do MQO vão depender da distribuição dos próprios erros,$u$. Por isso, adotaremos mais uma hipótese para que seja possível realizar inferência sobre os coeficientes: 
+
+---
+
+**Normalidade**
+
+O erro populacional u é independente das variáveis explicativas $x_1,x_2,...,x_k$ e é normalmente distribuído com média zero e variância. Formalizando:
+
+$u \sim Normal(0,\sigma^2)$
+
+---
+
+A justificativa para essa hipótese vem do teorema do limite central (TLC). De forma resumida, o TLC diz que quanto maior a amostra mais a distribuição amostral da sua média se aproxima de uma distribuição normal. A hipótese de normalidade e as hipóteses de GAUSS-MARKOV são chamadas de **hipóteses do modelo linear clássico (MLC)**. Através delas, podemos afirmar que os estimados do MQO são não viesados e tem variância mínima. O que significa que o MQO tem a menor variância entre os estimadores não viesados.
+
+A normalidade dos erros é refletida nas distribuições amostrais dos estimadores do MQO. Formalizando:
+
+
+>**- TEOREMA**
+>
+> Sob a hipótese de normalidade e as hipóteses de GAUSS-MARKOV, os coeficientes $\beta_j$(que são funções lineares de $u$) apresentam distribuição normal com:
+>
+> $\hat{\beta_j} \sim Normal(\beta_j,\sigma^2_{\hat{\beta_1}})$
+>
+> Pelas propriedades da distribuição normal, a variável Z, que é definida como:
+>
+> $Z = \frac{\hat{\beta_j} - \beta_j}{\sigma_{\hat{\beta_1}}}$
+>
+> Segue uma distribuição normal padrão, com média zero e variância unitária:
+>
+> $Z = \frac{\hat{\beta_j} - \beta_j}{\sigma_{\hat{\beta_1}}} \sim Normal(0,1)$
+>
+>Repare que para construir o teorema utilizamos a verdadeira variância populacional,$\sigma^2$. Na prática, a variância populacional é raramente conhecida, portanto, utilizaremos seu estimador não viesado, $\hat{\sigma^2}$. Dessa forma, em vez de usarmos a distribuição normal, podemos usar a distribuição t para inferir sobre os coeficientes do MQO. Formalizando:
+>
+>$t = \frac{\hat{\beta_j} - \beta_j}{\hat{\sigma}_{\hat{\beta_1}}} \sim t_{n-k-1} = t_{df}$
+>
+>em que $K + 1$ é o número de parâmetros desconhecidos do modelo populacional,y, e $df =n - k - 1$
+
+&nbsp;
+&nbsp;
+
+#### **2. Teste de hipóteses: Teste de significância estatísticas dos coeficientes de MQO**
+
+
+##### **2.1 Hipóteses nulas e estatística t**
+
+O teste de significância é um procedimento em que os resultados amostrais são usados para verificar a veracidade ou não de uma hipótese nula, $H_0$. Na análise de uma regressão, faremos isso com base na estatística t, que definimos anteriormente, e um valor crítico, referente ao nível de significância escolhido. 
+
+Primeiramente, para aplicarmos o teste devemos definir nossa hipótese nula. Na maioria das aplicações, utilizaremos:
+
+
+$H_0:\hat{\beta_j} = 0$
+
+Para testar essa hipótese precisamos calcular a estatística t, que, nesse caso, é definida como:
+
+$t_{\hat{\beta_j}} \equiv \frac{\hat{\beta_j}}{dp(\hat{\beta_j})}$
+
+---
+
+> Importante ressaltar que a hipótese nula apresentada, apesar de ser a mais comum, não é a única utilizada.
+Podemos testar sob hipóteses do tipo:
+>
+> $H_0:\beta_j = a_j$
+>
+> Nesse caso, testamos se o coeficiente é igual a uma constante, $a_j$, hipotética. Diante disso, a estatística t apropriada é dada por:
+>
+> $t = \frac{(\hat{\beta_j} - a_j)}{ep(\hat{\beta_j})}$
+>
+> Reparem que se adotarmos um $a_j = 0$, a hipótese nula e a estatística t serão as mesmas que apresentamos anteriormente. Nota-se então que a hipótese do tipo $H_0:\hat{\beta_j} = 0$ é um caso mais específico da hipótese $H_0:\beta_j = a_j$. O mesmo será valido para a forma que construímos a estatística t:
+>
+> $t = \frac{(\hat{\beta_j} - 0 )}{ep(\hat{\beta_j})} = \frac{\hat{\beta_j}}{ep(\hat{\beta_j})}$
+
+
+---
+
+&nbsp;
+&nbsp;
+
+
+##### **2.2 A hipótese alternativa.**
+
+Para determinar uma regra para rejeitar a hipótese nula, $H_0$, precisamos decidir sobre a hipótese alternativa, $H_1$, relevante. Considerando a hipótese que fizemos anteriormente, adotaremos uma hipótese alternativa bicaudal(bilateral), do tipo:
+
+$H_1:\hat{\beta_j} \neq 0$
+
+Repare que a hipótese alternativa engloba sempre o conjunto que não é capturado pela hipótese nula. Se adotarmos, por exemplo, uma hipótese nula unilateral superior (Com cauda direita
+
+$H_0:\hat{\beta_j} \leq 0$
+
+A hipótese alternativa irá capturar o conjunto dos números maiores que 0:
+
+$H_1:\hat{\beta_j} > 0$
+
+As hipóteses nulas e alternativas possíveis estão resumidas no quadro:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+tibble("Tipo de Hipótese" = c("Bicaudal","Cauda direita","Cauda esquerda"),
+       "$H_0:$ Hipótese nula" = c("$\\beta_j = a_j$","$\\beta_j \\geq a_j$","$\\beta_j \\leq a_j$"),
+       "$H_1:$ Hipótese alternativa" = c("$\\hat{\\beta_j} \\neq a_j$","$\\hat{\\beta_j} >  a_j$","$\\hat{\\beta_j} < a_j$"),
+       "Rejeita $H_0$ se" = c("$\\left\\lvert t \\right\\rvert > t_{\\alpha/2,df}$","$t > t_{\\alpha/2,df}$","$t > -t_{\\alpha/2,df}$")) %>% 
+  knitr::kable()
+```
+
+&nbsp;
+&nbsp;
+
+##### **2.3 Nível de significância, $\alpha$.**
+
+Definido a hipótese nula e alternativa, escolhemos o nível de significância, $\alpha$. Juntamente com os graus de liberdade (gl ou df), o nível de significância irá delimitar o valor e a região crítica contra a qual vamos comparar a estatística t. Em econometria, usualmente utilizamos um nível de significância de 5%.
+
+---
+
+Portanto, considerando a hipótese nula:
+
+$H_0:\hat{\beta_j} = 0$. 
+
+A regra de rejeição será dada por:
+
+```{r echo=TRUE}
+plot_dis_t <- ggplot(data.frame(x = c(-4, 4)), aes(x)) +
+  stat_function(fun = dt,args=list(df =25)) +
+  theme(axis.text.y = element_blank(),axis.ticks.y = element_blank()) +
+  xlab("") +
+  ylab("") 
+
+plot_dis_t +
+  stat_function(fun = dt,args=list(df =25),xlim = c(2.06,4),geom = "area",fill = "red",alpha = 0.5) +
+  stat_function(fun = dt,args=list(df =25),xlim = c(-2.06,-4),geom = "area",fill = "red",alpha = 0.5) +
+  scale_x_continuous(breaks= c(-2.06,0,2.06)) +
+  ggtitle(TeX(r'(Regra de rejeição a 5% para a $H_1:\beta_j \neq 0$ com 25gl)'))
+```
+
+
+A área em vermelho representa a região de rejeição da hipótese nula. Nesse caso, o valor crítico é:
+
+
+```{r}
+gl <- 25
+alpha <- 0.05
+qt(1-alpha/2,gl)
+```
+
+Portanto, com um $\alpha = 5%$ e 25 graus de liberdade, se o valor absoluto da estatística t for maior que 2.06, rejeitaremos a hipótese nula.
+
+---  
+
+A escolha do nível de significância merece certo cuidado. O nível de significância representa também a probabilidade de cometer um erro tipo I, ou seja, representa a probabilidade de rejeitar uma hipótese verdadeira. Quanto menor o nível de significância escolhido, maior será o valor crítico e, portanto, menor será a área de rejeição, como pode ser observado abaixo:
+
+```{r echo=TRUE}
+plot_dis_t +
+  stat_function(fun = dt,args=list(df =25),xlim = c( 2.78,4),geom = "area",fill = "green",alpha = 0.5) +
+  stat_function(fun = dt,args=list(df =25),xlim = c(- 2.78,-4),geom = "area",fill = "green",alpha = 0.5) +
+  stat_function(fun = dt,args=list(df =25),xlim = c(2.06,4),geom = "area",fill = "blue",alpha = 0.5) +
+  stat_function(fun = dt,args=list(df =25),xlim = c(-2.06,-4),geom = "area",fill = "blue",alpha = 0.5) +
+  stat_function(fun = dt,args=list(df =25),xlim = c(1.7,4),geom = "area",fill = "red",alpha = 0.5) +
+  stat_function(fun = dt,args=list(df =25),xlim = c(-1.7,-4),geom = "area",fill = "red",alpha = 0.5) +
+  scale_x_continuous(breaks= c(-2.78,-2.06,-1.7,0,1.7,2.06,2.78)) +
+  theme(axis.text.x = element_text(angle=45))
+
+
+```
+
+Os valores 1.7,2.06 e 2.78 são, respectivamente, os valores críticos dos níveis de significâncias de 10%, 5% e 1%. Ao diminuir a região de rejeição, aumentamos a probabilidade de cometermos um erro tipo I, por outro lado, diminuímos a probabilidade de cairmos em um erro tipo II (probabilidade de não rejeitarmos uma hipótese falsa). No geral, o segundo erro é visto como mais problemático e, portanto, busca-se escolher um nível de significância que diminua sua ocorrência. Por isso, utilizaremos no máximo um $\alpha$ de 10%, ainda que usualmente 5% seja o mais comum.
+
+&nbsp;
+&nbsp;
+
+---
+
+> Regra de bolso.
+>
+> À medida que aumentamos os graus de liberdade de uma distribuição t, mais próxima ela irá ficar de uma distribuição normal padronizada. 
+De fato, podemos visualizar isso:
+>
+> O valor Z de uma distribuição normal a um nível de significância de 5% é:
+
+```{r}
+alpha <- 0.05
+znorm_5 <- qnorm(1-alpha/2) %>% round(2)
+znorm_5
+```
+> Plotando os valores críticos de t:
+
+```{r}
+gl <- seq(1,120,0.1)
+alpha <- 0.05
+
+tibble(gl = gl,t_critico = qt(1-alpha/2,gl)) %>% 
+  ggplot()+
+  geom_line(aes(x = gl,y =t_critico)) +
+  geom_hline(yintercept = qnorm(1-alpha/2), color = "red") +
+  coord_cartesian(ylim=c(1.5,2.5)) +
+  scale_y_continuous(breaks= znorm_5) +
+  xlab("Graus de liberdade (gl = n - k - 1)") +
+  ylab("t crítico") 
+  
+```
+
+> Devido a essa propriedade é comum ver 1.96 sendo utilizado como regra de bolso para o estudo do teste de hipóteses.
+
+---
+
+&nbsp;
+&nbsp;
+
+##### **3. Finalmente, na prática**
+
+Ao rodar uma regressão no R, a estatística t já é calculada automaticamente:
+
+```{r}
+dados <- gpa1
+mod_1 <- lm(colGPA ~ hsGPA + ACT +  skipped,data = gpa1)
+mod_1 %>% summary
+```
+
+De fato, olhando para a variável hsGPA, se calcularmos a estatística t com a fórmula que derivamos anteriormente chegaremos no mesmo resultado:
+
+
+```{r}
+b_hsGPA <- 0.41182
+dp_hsGPA <- 0.09367
+
+t_hsGPA <- b_hsGPA/dp_hsGPA
+t_hsGPA
+```
+
+Com a estatística em mãos, podemos fazer os testes de hipóteses:
+
+---
+
+```{r}
+#Calculando os graus de liberdade
+gl <- nrow(dados) - 3 - 1
+gl
+```
+
+Com isso a um nível de significância de 5%, o valor crítico é:
+
+```{r}
+qt(1-0.05/2,gl)
+```
+
+Logo, considerando as hipóteses nula e alternativa:
+
+
+$H_0:\hat{\beta_j} = 0$  
+
+$H_0:\hat{\beta_j} \neq 0$
+
+Como $|t| = 4.3 > 1.97$, rejeitamos a hipótese nula a 5% de significância. 
+
+---
+
+Repare que ao lado dos coeficientes, o R demonstra os resultados dos testes de hipóteses com os asteriscos. 
+
+```{r}
+mod_1 %>% summary
+```
+
+A variável skipped, por exemplo, tem dois asteriscos que dizem que a variável é estatisticamente significante a um nível de significância de 1%. 
+
+---
+
+Resumo de como o R apresenta o resultado dos testes:  
+
+
+```{r echo=FALSE}
+tibble("Nível de signif." = c("0.1%","1%","5%","10%"),
+       "Signif. codes" = c("***","**","*",".")) %>% 
+  knitr::kable()
+```
+
+  
+---
+
+&nbsp;
+&nbsp;
+
+##### **4. P-valor**
+
+Há um componente de arbitrariedade na escolha do nível de significância adequado. Ainda que 5% seja o mais utilizado, não podemos dizer que este é o mais "correto". Para diminuir essa ambiguidade, podemos calcular o menor nível de significância no qual rejeitaremos a hipótese nula. Esse valor, será dado pela p-value. Utilizando novamente hsGPA como exemplo:
+
+```{r}
+2*pt(t_hsGPA,df =  137,lower.tail = FALSE)
+```
+
+O p-valor nesse caso, é evidência contra a hipótese nula a qualquer nível de significância comummente utilizado. Vejamos a variável skipped:
+
+```{r}
+b_skip <- -0.08311    
+dp_ski <- 0.02600  
+t_skip <- abs(b_skip/dp_ski)
+
+2*pt(t_skip,df =  137,lower.tail = FALSE)
+```
+O pvalor da variável skipped é menor que 1% porém maior que 0.1%. Nesse caso, rejeitamos a hipótese nula para qualquer nível de significância maior que 1%. 
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,296 @@
+---
+title: ""
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,message=FALSE, warning=FALSE)
+knitr::opts_chunk$set(fig.width=6, fig.height=4,fig.align = "center")
+```
+
+```{css style settings, echo = FALSE}
+blockquote {
+    font-size: 14px;
+}
+```
+
+
+### Monitoria 10 - Séries de tempo e Autocorrelação
+
+Nome: Lucas Martins de Farias Fernandes  
+Email: Lucasmffernandes@gmail.com  
+
+----
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, results= FALSE}
+#setup
+library(tidyverse)
+library(wooldridge)
+library(car)
+library(stargazer)
+library(sandwich)
+library(lubridate)
+```
+
+----  
+
+#### **1. Séries Temporais.**
+
+Em econometria, no geral, utilizamos três tipos de dados: Cortes transversais, séries temporais e dados em painel. Cada tipo de dado tem suas particularidades a respeito das hipóteses que fizemos para construir o MQO. Em estudos com cortes transversais, não há razão a priori para considerar que o termo de erro pertencente a uma observação seja correlacionado ao termo de erro de outra observação. A história muda quando partimos para séries temporais, pois as observações de tais dados seguem um ordenamento natural, de modo que as observações sucessivas costumam apresentar intercorrelações entre as observações.
+
+Antes de entrar no problema de autocorrelação devemos saber como lidar com as séries de tempo dentro do R. É interessante, nesse caso, que o programa entenda que a variável segue uma estrutura temporal. Para isso, utilizaremos algumas bibliotecas e tipos de objetos específicos para séries temporais, que conservam a estrutura temporal, permitindo manipular os dados de forma mais eficiente.
+
+&nbsp;
+&nbsp;
+
+##### **1.1 Pacotes para análise de séries temporais**
+
+Para o curso, a função ts(), própria do R já é o suficiente. Mas existem alguns pacotes como xts e o zoo, que facilitam na hora de trabalhar com séries temporais. Não vou me aprofundar nos pacotes, mas quem tiver interesse separei algumas referências que demonstram como utilizar os pacotes:
+
+>O Xts e o Zoo, facilitam no sub setting e são, no geral, mais flexíveis que a função ts() padrão:
+>
+>[CheatSheet Xts](https://www.datacamp.com/community/blog/r-xts-cheat-sheet)
+
+```{r}
+# install.packages("xts")  
+# install.packages("zoo")
+```
+
+>Outra biblioteca interessante é fpp3, ele tenta trazer a metodologia do tidyverse para a análise de séries temporais. O pacote tsibble, que faz parte da biblioteca, permite utilizar o pipe (%>%), e as funções do tidyverse, como mutate() ou filter(), com séries de tempo. O fpp3 também é utilizado na parte de forecasting, que é tema de econometria III.
+>
+>[Forecasting: Principles and Pratice. Com fpp3](https://otexts.com/fpp3/)
+
+```{r}
+# install.packages("fpp3") 
+```
+
+
+&nbsp;
+&nbsp;
+
+##### **1.2 A função ts().**
+
+Com a função ts(), padrão do R, conseguimos transformar data frames, em séries de tempo. Vejamos um exemplo, utilizando a séries "phillips" do wooldridge:
+
+```{r}
+série_df <- wooldridge::phillips %>% 
+  select(year,unem,inf)
+
+série_df %>% str()
+```
+
+&nbsp;
+
+Geralmente, ao importar uma base de dados ela virá como data_frame. Para transformar em uma série de tempo, passamos os dados para a função ts(), informando no argumento **start** o inciio da série, e em **frequency** quantas observações temos por ano. Nesse caso, a série "phiplips" do wooldridge começa em 1948 e é anual:
+
+```{r}
+série_ts <- série_df %>% 
+  select(-year) %>% 
+  ts(start = 1948,frequency = 1)
+
+série_ts %>% str()
+```
+
+&nbsp;
+
+Informamos 1 no argumento **frequency** pois temos apenas 1 observação por ano, se a série fosse semestral usáriamos **frequency** = 6, se mensal **frequency** = 12 e por aí vai. Repare que agora o R entende que o objeto é uma série de tempo. Com isso, podemos partir para a análise de autocorrelação.
+
+&nbsp;
+&nbsp;
+
+#### **2. A natureza da autocorrelação.**
+
+A autocorrelação pode ser definida como "correlação entre integrantes de séries de observações ordenadas no tempo ou no espaço". No contexto da regressão, assumimos que esta correlação não existe nos termos de erro, $u_i$. Em outras palavras, pressupomos que o termo de erro de uma observação não é influenciado pelo termo de erro de qualquer outra observação. Se verificada a influência entre os termos de erro, teremos autocorrelação. É interessante saber por que a autocorrelação ocorre, para que possamos adequar o modelo a esse problema. Vejamos alguns exemplos:
+
+&nbsp;
+
+**1. Inercia**
+
+Característica da maioria das séries temporais econômicas. séries como PNB, índices de preços, produção e emprego/desemprego registram ciclos econômicos. Nesses casos, a série tem certa inércia, e tende a continuar em determinada direção até que haja algum distúrbio que a desacelere.
+
+&nbsp;
+
+**2. Viés de especificação: Variaveis omitidas ou forma funcional incorreta.**
+
+O viés de especificação, que já discutimos ao falar das hipóteses do MQO, pode introduzir autocorrelação no modelo. Nesse caso, a solução é buscar especificar melhor a equação regredida, adicionando ou retirando variáveis e testando diferentes formas funcionais. 
+
+&nbsp;
+
+**3. Defasagens.**
+
+Em algumas séries de tempo, verificamos frequentemente que o valor em t depende do valor em t-1.Isso ocorre como o consumo por exemplo, a despesa de uma familia hoje, em geral, depende da quantidade consumida no período anterior. Nesses casos, precisamos criar uma variável defasada para que possamos especificar no nosso modelo. Fazemos isso com a função lag(). Vamos a um exemplo, utilizando a base "philips" do wooldridge.
+
+Supondo que queremos estimar uma curva de Philips, adotando a hipótese de expectativas adaptativas de Friedman onde o valor esperado da inflação corrente depende da inflação no período anterior:
+
+$inf_t - inf_{t-1} = \beta_0  + \beta_1unem_t + u_t$
+
+Para estimar a curva, precisamos então da variável inf defasada. Utilizando a função lag, isso é bem simples:
+
+```{r}
+serie_df <- wooldridge::phillips %>% 
+  select(year,unem,inf) %>% 
+  filter(year <= 1996) %>% 
+  mutate(inf_1 = lag(inf))
+
+head(serie_df)
+```
+
+&nbsp;
+
+Repare que movemos com a função lag todas as observações em um período para frente. Feito isso podemos estimar nosso modelo:
+
+```{r}
+serie_ts <- serie_df  %>% 
+  filter(year <= 1996) %>% 
+  select(-year) %>% 
+  ts(start = 1948,frequency = 1)
+
+philips_reg <- lm(inf - inf_1 ~ unem,serie_ts)
+philips_reg %>% summary
+```
+
+&nbsp;
+&nbsp;
+
+---
+
+#### **O pacote dynlm.**
+
+>Uma alternativa a função lag() é utilizar o pacote dynlm. que introduz a função dynlm() que permite, entre outras coisas, incluir variáveis defasadas diretamente na função da regressão. Fazemos isso utilizando o operador L():
+
+```{r}
+# install.packages("dynlm")
+library(dynlm)
+
+philips_dynlm <- dynlm(inf - L(inf) ~ unem, serie_ts)
+philips_dynlm %>% summary()
+```
+&nbsp;
+> Podemos também criar dummies sazonais de forma simples, utilizando o operador season():
+
+```{r}
+dados_season <- wooldridge::barium %>% 
+  ts(start = 1978,frequency = 12)
+
+season_reg <- dynlm(lchnimp ~ lchempi + lgas + season(dados_season,ref = 1),dados_season)
+
+#Renomeando as variariaveis. Essa etapa é denecessária, so melhora na hora de imprimir os resultados.
+names(season_reg$coefficients) <- c("(Intercept)", "lchempi", "lgas", "feb", "mar", "apr", "may", 
+                                  "jun", "jul", "aug", "sep", "oct", "nov", "dec")
+
+
+season_reg %>% summary()
+```
+
+&nbsp;
+> Sem a função dynlm, ou algum outro pacote, teremos que criar a dummy na mão indicando um valor para cada mês e transformando a variável em um fator:
+
+```{r}
+construindo_dummies <- wooldridge::barium %>% 
+  select(lchnimp,lchempi,lgas) %>% 
+  cbind(Data = seq.Date(from = ymd("1978-01-01"),to = ymd("1988-11-01"),by = "month")) %>%  # Geralmente a base de dados vem com a coluna Data. Na prática essa etapa é desnecessária, criei para ilustrar como criar a dummy.
+  mutate(     
+    months = case_when( 
+      month(Data) == 1 ~ "jan",
+      month(Data) == 2 ~ "feb",
+      month(Data) == 3 ~ "mar",
+      month(Data) == 4 ~ "apr",
+      month(Data) == 5 ~ "may",
+      month(Data) == 6 ~ "jun",
+      month(Data) == 7 ~ "jul",
+      month(Data) == 8 ~ "aug",
+      month(Data) == 9 ~ "sep",
+      month(Data) == 10 ~ "oct",
+      month(Data) == 11 ~ "nov",
+      month(Data) == 12 ~ "dec"),
+    months = as_factor(months)
+  ) 
+
+season_reg_2 <- lm(lchnimp ~ lchempi + lgas + months,construindo_dummies)
+#Renomeando as variaríeis. Essa etapa é desnecessária, só melhora na hora de imprimir os resultados.
+names(season_reg_2$coefficients) <- c("(Intercept)", "lchempi", "lgas", "feb", "mar", "apr", "may", 
+                                  "jun", "jul", "aug", "sep", "oct", "nov", "dec")
+season_reg_2 %>% summary()
+```
+
+&nbsp;
+
+> Há várias formas de montar dummies desse tipo. Poderíamos fazer um loop, registrar cada mês em diferentes colunas/variáveis e por aí vai. Nesse caso, usei a função mutate() e criei uma coluna de characteres, informando cada mês. Após classificado cada linha da data frame, transformei a coluna num fator para que o R entenda que a coluna é uma variável categórica. No final, chegamos ao mesmo resultado que na função dynlm(), mas com o dobro do trabalho. Por isso é sempre mais fácil utilizar séries de tempo e as funções. Todos os pacotes de séries de tempo têm algum tipo de função para tratar coisas desse tipo o que facilita bastante o trabalho.
+
+---
+
+&nbsp;
+&nbsp;
+
+#### **3. Testes para autocorrelação.**
+
+Se há suspeita de autocorrelação, devemos realizar os testes estatísticos. Vejamos três opções de testes que, com exceção do Ljung-Box, estão presentes no pacote lmtest. Nos três casos verificamos a hipótese nula de ausência de autocorrelação. De fato, na maioria dos testes, a hipótese nula refere-se aquilo que assumimos como hipótese inicial. Nesse caso, sob as hipóteses de GAUSS-MARKOV, assumimos no modelo a inexistência de correlação serial. Faz sentido então adotar isso como nossa hipótese nula. 
+
+É importante notar que cada teste segue uma distribuição específica, os valores críticos devem ser comparados de acordo. Para simplificar a análise, vamos focar apenas nos p-valores dos testes. Vamos testar se a regressão onde construímos as dummies possui autocorrelação:
+
+**Teste Breusch–Godfrey (Teste LM)**
+
+```{r}
+#install.packages("lmtest")
+library(lmtest)
+bgtest(season_reg)
+```
+
+**Teste Ljung-Box (Teste Q)**
+
+```{r}
+Box.test(resid(season_reg),type ="Ljung-Box" )
+```
+
+**Teste Durbin-Watson (Teste d)**
+
+```{r}
+dwtest(season_reg)
+```
+
+&nbsp;
+
+Como em todos os casos o pvalor é menor que 0.01%, rejeitamos a hipótese nula de inexistência de autocorrelação.
+
+&nbsp;
+&nbsp;
+
+#### **4. Medidas corretivas.**
+
+Diagnosticado o problema, podemos:
+
+**1.** Tentar verificar se é um caso de autocorrelação pura e não resultado de má especificação, ou seja, excluiu algumas variáveis importantes ou porque a forma funcional é incorreta. 
+
+**2.** Se for autocorrelação pura, como no caso de heteroscedasticidade, podemos utilizar algum tipo de método de mínimos quadrados generalizados (MQG).
+
+**3.** Em amostras grande, podemos usar o método **Newey-West** para obter os erros padrões dos estimadores de MQO que estão corrigidos para autocorrelação. Esse método é uma extensão do método de White que vimos na monitoria anterior quando falamos dos erros padrão robustos a Heteroscedasticidade de White. Os erros padrões calculados pelo método **Newey-West** são chamados de **heteroskedasticity-and-autocorrelation-consistent(HAC) standard errors** ou **Newey-West standard errors**.No R, essa forma de calcular a matriz de covariância está implementada na função vcovHAC do pacote sandwich:
+
+
+```{r}
+#install.packages("sandwich")
+library(sandwich)
+
+coeftest(season_reg,vcov. = vcovHAC)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

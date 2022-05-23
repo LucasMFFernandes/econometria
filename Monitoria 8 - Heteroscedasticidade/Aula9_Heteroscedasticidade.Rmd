@@ -1,0 +1,374 @@
+---
+title: ""
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.width=6, fig.height=4,fig.align = "center")
+```
+
+### Monitoria 9 - Heterocedasticidade
+
+Nome: Lucas Martins de Farias Fernandes  
+Email: Lucasmffernandes@gmail.com  
+
+----
+
+```{r echo=TRUE, message=FALSE, warning=FALSE, results= FALSE}
+#setup
+library(tidyverse)
+library(wooldridge)
+library(car)
+library(stargazer)
+
+#install.packages("lmtest")
+library(lmtest)
+```
+
+----  
+
+#### **1. Heteroscedasticidade**
+
+Ao estudar a variância dos estimadores do MQO adotamos a hipótese de homoscedasticidade, que significa que a variância do erro não observável, u, condicional nas variáveis explicativas, é constante. Formalizando:
+
+---
+
+**Homoscedasticidade.**
+
+> O erro u tem a mesma variância dada a quaisquer valores das variáveis explicativas. Em outras palavras,
+$Var(u|x_1,...,x_k) = \sigma^2$
+  
+---
+
+Essa hipótese é quebrada sempre que a variância dos fatores não observáveis muda ao longo de diferentes segmentos da população. Vejamos um exemplo de heteroscedasticidade:
+
+
+```{r}
+set.seed(905)
+
+# gerando dados com heterocedasticidade:
+dados_hetero <- tibble(x = 1:500) %>% 
+  mutate(
+    y = rnorm(n = 500, mean = x, sd = 0.6 * x)
+  )
+
+#Plotando dados e reg
+dados_hetero %>% 
+  ggplot(aes(x,y)) +
+  geom_point() +
+  geom_smooth(method = "lm",alpha = 0)  
+
+```
+
+
+Percebe-se que no gráfico, quanto maior x, maior é a dispersão dos valores ao redor da reta de regressão, ou seja, a variância de y aumenta conforme x aumenta. Utilizamos a hipótese de homoscedasticidade para justificar a utilização dos testes t e F. Sobre heteroscedasticidade, as estatísticas t não seguem uma distribuição t e o mesmo será verdade para F, ou seja, as estatísticas que utilizamos nos testes de hipóteses não são mais válidas. Devemos, nesse caso, ajustar nosso modelo para tornar as estatísticas válidas.
+
+&nbsp;
+&nbsp;
+
+#### **2. O teste para heteroscedasticidade.**
+
+Nem sempre a análise gráfica é o suficiente para identificar o problema de heteroscedasticidade. Para isso, podemos realizar testes estatísticos, que detectam a presença. Focaremos aqui no teste de Breusch-Pagan, ou BP, que é o mais comum. Suponha que queremos regredir o seguinte modelo teórico:
+
+$y = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + ... + \beta_k x_k + u$
+
+Vamos assumir que as hipóteses 1 a 4, são válidas e, portanto, não ha viés no nosso modelo. Queremos testar, se a hipótese nula de homoscedasticidade é verdadeira:
+
+$H_0: Var(u|x_1,x_2,...,x_k) = \sigma^2$
+
+Ou seja, presumimos que os erros são homoscedasticos. Como assumimos que a hipótese 4, $E(u|x_1,...,x_k) = 0$, é válida, em outras palavras, supomos que u tem esperança condicional 0, $Var(u|x_1,x_2,...,x_k) = E(u^2|_1,x_2,...,x_k)$. Dessa forma, podemos escrever a hipótese nula de homoscedasticidade da seguinte forma:
+
+
+$H_0: E(u^2|_1,x_2,...,x_k) = E(u^2) = \sigma^2$
+
+Isso mostra que para testar se há presença de heteroscedasticidade, devemos verificar se $u^2$ está relacionado a uma ou mais variável explicativa. Para isso, regredimos uma regressão com o quadrado dos erros como variável dependente:
+
+$u^2 = \delta_0 + \delta_1 x_1 + \delta_2 x_2 + ...  +  \delta_k x_k + v$
+
+Para verificar a nula que:
+
+$H_0:  \delta_1 = \delta_2 = ... = \delta_k =0$
+
+Lembre-se que nunca conhecemos os erros verdadeiros do modelo, portanto, iremos na prática estimar a relação entre os resíduos. Sendo assim, de forma análoga, testaremos na prática:
+
+$\hat{u}^2 = \delta_0 + \delta_1 x_1 + \delta_2 x_2 + ...  +  \delta_k x_k + v$
+
+&nbsp;
+&nbsp;
+
+---
+
+Vamos agora para um exemplo prático. Supondo o que queremos estimar o modelo:
+
+$price = lotsize + sqrft + bdrms + u$
+
+Calculando:
+
+
+```{r}
+dados_1 <- wooldridge::hprice1
+
+modelo <- lm(price ~ lotsize + sqrft + bdrms,dados_1)
+```
+
+Regredido o modelo, partimos para o teste:
+
+**1º** Obtenha os quadrados dos resíduos, $\hat{u^2}$ do modelo em questão:
+
+
+```{r}
+resid_sq <- resid(modelo)^2
+```
+
+&nbsp;
+  
+**2º** Registre o R quadrado, $R_{\hat{u^2}}^2$, da regressão com os quadrados dos resíduos como variável dependente, contra as variáveis dependentes do modelo original. Estimando:
+
+$u^2 = \delta_0 + \delta_1 lotsize + \delta_2 sqrft + \delta_3 bdrms$
+
+
+```{r}
+mod_resid <- lm(resid_sq ~ lotsize + sqrft + bdrms,dados_1)
+
+r_sq <- summary(mod_resid)$r.squared
+```
+
+Repare que ao registrar o R2 dessa regressão estamos verificando o quando as varáveis independentes explicam dos resíduos. Se o R2 é "significativo", há presença de heteroscedasticidade. Para verificar isso, aplicamos o teste LM...
+
+&nbsp;
+  
+**3º** Calcule a estatística LM:
+
+$LM = n  R_{\hat{u^2}}^2$
+
+```{r}
+LM = nrow(dados_1) * r_sq
+LM
+```
+
+&nbsp;
+
+A estatística LM segue uma distribuição qui-quadrado, $\chi^2_{k}$. Com isso, o valor de uma distribuição $\chi^2_{k}$ com 3 graus de liberdade a um nível de sig de 5% é dado por:
+
+```{r}
+qchisq(1-0.05,df = 3)
+```
+
+&nbsp;
+
+Como LM = 14.09 > 7.8, rejeitamos a hipótese nula, ou seja, há evidências de heteroscedasticidade. Evidentemente, na prática, não precisamos realizar o teste na mão. A função bptest() do pacote lmtest, permite realizar o teste automaticamente:
+
+```{r}
+bptest(modelo)
+```
+
+---
+
+&nbsp;
+&nbsp;
+
+#### **3.1 Inferência robusta em relação à heteroscedasticidade.**
+
+Identificado o problema, devemos encontrar uma forma de tornas as estatísticas válidas na presença de heteroscedasticidade. Em certos casos, alterar a forma funcional do modelo, utilizando log por exemplo, é suficiente para resolver o problema. Porém, nem sempre isso será possível. Mas isso não significa que devemos deixar de lado o modelo MQO, existem métodos capazes de gerar estatísticas válidas mesmo na presença de heteroscedasticidade. Esses métodos são chamados de procedimentos robustos à heteroscedasticidade (Capítulo 8 do Wooldridge). Vejamos como funciona, usualmente, calculamos a matriz varcov da seguinte forma:
+
+$varcov(\hat{\beta}) = (X'X)^{-1}X'E[uu']X(X'X)^{-1}$
+
+sob a hipótese de homoscedasticidade $E[uu'] = \sigma^2I$. Com isso chegamos na forma usual, simplificada, de calcular a matriz:
+
+$varcov(\hat{\beta}) = \sigma^2(X'X)^{-1}$
+
+Quando há heterocedasticidade a simplificação anterior não é possível. Devemos levar em conta que $E[uu'] = \sigma^2\Omega$, onde:
+
+$$\mathbf{\sigma^2\Omega} = \sigma^2\left[\begin{array}{rrr}\omega_1 &  \cdots & 0 \\\vdots & \ddots & \vdots \\0 & \cdots &\omega_n\end{array}\right] = \left[\begin{array}{rrr}{\sigma_{1}}^2 &  \cdots & 0 \\\vdots & \ddots & \vdots \\0 & \cdots &{\sigma_{i}}^2\end{array}\right]$$
+
+Substituindo na equação (1) temos:
+
+$varcov(\hat{\beta}) = (X'X)^{-1}X'\sigma^2\Omega X(X'X)^{-1}$
+
+Se o tipo de heterocedasticidade,$\Omega$, é conhecido podemos utilizar a equação (3) para corrigir a heterocedasticidade. Se não, devemos adotar técnicas de estimação que requerem a formulação de $\Omega$. Podemos utilizar o estimador proposto por White (1980), onde $E[uu']=diag[{e_{i}^2]}$, substituindo na eq. (1) temos: 
+
+$HC0 = (X'X)^{-1}X'diag[{e_{i}^2]}X(X'X)^{-1}$
+
+Como demonstrado por White (1980), $HC0$ é  um estimador válido de $Var(\hat{\beta_j})$ na presença de heteroscedasticidade. 
+
+&nbsp;
+&nbsp;
+
+#### **3.3 Finalmente, na prática.**
+
+Vamos estimar o seguinte modelo, do exemplo 8.2 do Wooldridge:
+
+$$\widehat{cumgpa} = \beta_0 + \beta_1 sat + \beta_2 hsperc + \beta_3 tothrs +\beta_4 female + \beta_5 black + \beta_6 white$$
+
+```{r}
+dados_2 <- wooldridge::gpa3 %>% 
+  filter(spring == 1)
+
+modelo_hetero <- lm(cumgpa ~ sat + hsperc + tothrs + female + black + white,data = dados_2)
+```
+
+&nbsp;
+
+Realizando o teste BP:
+
+```{r}
+modelo_hetero %>% bptest()
+```
+
+&nbsp;
+
+Como o pvalor é baixo, rejeitamos a hipótese nula de homoscedasticidade. Há, portanto, evidência de heteroscedasticidade no modelo. A função hccm() do pacote car, permite calcular a matriz covariância robusta a heteroscedasticidade, $HC0$, apresentada anteriormente:
+
+```{r}
+hccm(modelo_hetero,type = "hc0")
+```
+
+&nbsp;
+
+Com isso, podemos recalcular o erro padrão e as estatísticas t:
+
+```{r message=FALSE, warning=FALSE}
+#Calculando estatisticas robustas a heteroscedasticidade:
+mod_robusto_hetero <- coeftest(modelo_hetero,vcov. = hccm(modelo_hetero,type = "hc0")) 
+mod_robusto_hetero
+```
+
+&nbsp;
+
+Comparando com o modelo inicial:
+
+```{r message=FALSE, warning=FALSE}
+
+#Comparando com o MQO usual:
+stargazer(modelo_hetero,mod_robusto_hetero,column.labels = c("Normal","Robusto"),type = "text",digits = 5)
+```
+
+
+&nbsp;
+&nbsp;
+
+Para calcular a estatística F, utilizamos a função linearHypothesis() especificando a matriz $HC0$:
+
+```{r}
+linearHypothesis(modelo_hetero,c("black","white"),vcov. = hccm(modelo_hetero,type = "hc0"))
+```
+
+
+Ou, para testar a estatística F da regressão como um todo:
+
+```{r}
+variaveis <- names(modelo_hetero$coefficients)[-1]  
+
+linearHypothesis(modelo_hetero,variaveis,vcov. = hccm(modelo_hetero,type = "hc0"))
+```
+
+&nbsp;
+&nbsp;
+
+
+#### **4. Estimação de mínimos quadrados ponderados.**
+
+Antes do desenvolvimento das estatísticas robustas em relação à heteroscedasticidade, a resposta à descoberta de heteroscedasticidade era reespecificar o modelo utilizando o método de mínimos quadrados ponderando.
+
+&nbsp;
+&nbsp;
+
+#### **4.1 Heteroscedasticidade conhecida, MQG.**
+
+Considerando o modelo:
+
+$y = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + ... + \beta_k x_k + u$
+
+Considere também que **x** representa todas as variáveis explicativas na equação, suponha que a variância dos erros apresenta heteroscedasticidade e é dada por:
+
+$Var(u|\textbf{X}) = \sigma^2h(\textbf{X})$
+
+em que $h(\textbf{X})$ é alguma função, positiva, que determina a heteroscedasticidade. Se essa função é conhecida, podemos ajustar nosso modelo levando-o em consideração na regressão. Faremos isso dividindo cada variável no modelo pela da raiz do peso, $h(\textbf{X})$ (Ver seção 8.4 do wooldridge para o tratamento matemático). Na prática, faremos isso especificando na função lm() o argumento **weight = ...** passando para ele, o peso que queremos levar em conta. Vejamos o exemplo, suponha que queremos estimar os determinantes da riqueza em ativos financeiros de um indivíduo, estimando a equação:
+
+$nettfa = inc + age + male + e401k + u$
+
+```{r}
+dados_3 <- wooldridge::k401ksubs %>% 
+  filter(fsize == 1) 
+
+mod_mqo <- lm(nettfa ~ inc + age + male + e401k,data = dados_3) 
+mod_mqo %>% summary()
+```
+
+&nbsp;
+
+Suspeitamos de heteroscedasticidade e, portanto, realizamos o teste BP:
+
+```{r}
+mod_mqo %>% bptest()
+```
+
+&nbsp;
+
+De acordo com o teste, rejeitamos a hipótese nula de homoscedasticidade a 5%. Supondo agora que conhecemos $h(\textbf{X})$, e que a variância é proporcional a variável inc (income). Dessa forma, podemos especificar o modelo utilizando 1/inc como a variável de ponderação: 
+
+```{r}
+mod_mqg <- lm(nettfa ~ inc + age + male + e401k ,weights = 1/inc ,data = dados_3) 
+mod_mqg %>% summary()
+```
+
+&nbsp;
+&nbsp;
+
+
+#### **4.2 Heteroscedasticidade desconhecida, MQG factível.**
+
+Na maioria dos casos, a forma exata de heteroscedasticidade não é óbvia. Em outras palavras, é difícil encontrar a função $h(\textbf{X})$. Contudo, podemos modelar a função $h$ e utilizar os dados para estimar os parâmetros desconhecidos do modelo. Isso resulta em uma estimativa de cada $h_i$, indicada por $\hat{h_i}$. O uso de $\hat{h_i}$ na transformação MQG produz o estimador denominado estimador MQG factível (MQGF ou MQGE). Existem vários procedimentos para estimar $h$, utilizaremos aqui um método particular razoavelmente flexível, vejamos na prática utilizando o exemplo anterior:
+
+**1º** Execute a regressão de $y$ sobre $x_1,x_2,...,x+k$ e obtenha o quadrado dos resíduos, $\hat{u^2}.$:
+
+```{r}
+mod_mqo <- lm(nettfa ~ inc + age + male + e401k,data = dados_3) 
+residuos_sq <- resid(mod_mqo)^2
+```
+
+&nbsp;
+
+**2º** Calcule o log natural do quadrado dos resíduos, $log(\hat{u^2})$:
+
+```{r}
+log_residuos_sq <- log(residuos_sq)
+```
+
+&nbsp;
+
+**3º** Estime uma regressão com o log do quadrado dos resíduos como variável dependente, e registre os valores estimados,$\hat{g}$:
+
+$log(\hat{u^2}) = \alpha_0 + \delta_1 x_1 + ... + \delta_k x_k + e$
+
+Calculando:
+
+```{r}
+mod_inter_mqgf <- lm(log_residuos_sq ~ inc + age + male + e401k,data = dados_3)
+
+fitted_inter <- fitted(mod_inter_mqgf)
+```
+
+&nbsp;
+
+**4º** Calcule o exponencial dos valores estimados, obtendo a variável de ponderação $1/\hat{h}$, onde $\hat{h} = exp(\hat{g})$:
+
+```{r}
+w_hat <- exp(fitted_inter)^-1
+```
+
+&nbsp;
+
+**5º** Reestime o modelo, usando a variável de ponderação estimada:
+
+```{r}
+mod_mqgf <- lm(nettfa ~ inc + age + male + e401k, weights = w_hat, data = dados_3) 
+mod_mqgf
+```
+
+Ao utilizar o verdadeiro $h_i$, os estimadores do modelo MQG é não viesado. Porém, estimar $h_i$ usando os mesmos  dados significa que o estimador MQGF deixa de ser não viesado, ou seja, na média o MQG factível erra sistematicamente a previsão. De qualquer forma, em amostras grande, o MQGF é uma atraente alternativa ao MQO quando existe evidências de heteroscedasticidade que infla os erros padrão das estimativas do MQO. 
+
+
+
+

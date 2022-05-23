@@ -1,0 +1,333 @@
+---
+title: ''
+output: html_document
+---
+
+```{css style settings, echo = FALSE}
+blockquote {
+    font-size: 14px;
+}
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.width=6, fig.height=4,fig.align = "center")
+
+```
+
+
+### Monitoria 8 - Inferência em regressão multipla e Variáveis binárias.
+
+Nome: Lucas Martins de Farias Fernandes  
+Email: Lucasmffernandes@gmail.com  
+
+```{r echo=TRUE, message=FALSE, warning=FALSE,results = 'hide'}
+#setup
+# install.packages("car")
+# install.packages("AER")
+# install.packages("pBrackets")
+
+#Pacote que permite fazer os testes de hipóteses conjuntas:
+library(car)
+library(tidyverse)
+
+library(latex2exp)
+library(pBrackets)
+library(stargazer)
+library(wooldridge)
+library(AER)
+```
+
+#### **1. Testes de restrições lineares múltiplas: O teste F.**
+
+##### **1.1 Teste de restrições de exclusão.**
+
+Até o momento vimos como realizar testes de hipóteses sobre um único parâmetro da regressão. Frequentemente, desejamos testas hipóteses múltiplas sobre os parâmetros. Supondo que queremos testar se um grupo de variáveis não tem efeito sobre a variável dependente, uma vez que outro conjunto de variáveis foi controlado. Para ilustrar, considere o seguinte modelo que explica os salários dos jogadores da principal liga de beisebol dos Estados Unidos:
+
+$$log(salary) = \beta_0 + \beta_1years + \beta_2gamesyr + \beta_3bavg + \beta_4hrunsyr + \beta_5rbisyr + u$$
+
+&nbsp;
+
+Onde $salary$ é o salário total do jogador em 1993, $year$ corresponde aos anos do jogador na liga, $gamesyr$ é a média de partidas jogadas por ano, $bavg$ é a média de rebatidas na carreira do jogador, $hrunsyr$ corresponde a rebatidas para fora do campo por ano, e $rbisyr$ correspondem a corridas até a próxima base por ano. Considere que queremos testar se as medidas de desempenho $bavg$, $hrunsyr$ e $rbisyr$ são ou não relevantes para determinar o salário, ou seja, queremos testar se o modelo é mais adequado com ou sem as variáveis indicadas. Para realizar o teste, definiremos um **modelo restrito** que omite as variáveis testadas:
+
+$$log(salary) = \beta_0 + \beta_1years + \beta_2gamesyr + u$$
+
+&nbsp;
+
+
+Para testar a hipótese nula:
+
+$H_0: \beta_3 = 0, \beta_4 = 0, \beta_5 = 0$
+
+Rodando os modelos:
+
+```{r message=FALSE, warning=FALSE}
+dados <- wooldridge::mlb1
+
+mod_irrestrito <- lm(log(salary) ~ years + gamesyr + bavg + hrunsyr + rbisyr,dados)
+mod_restrito <- lm(log(salary) ~ years + gamesyr ,dados)
+
+stargazer(mod_irrestrito,mod_restrito,type = "text",column.labels =  c("Irrestrito","Restrito"))
+```
+
+&nbsp;
+
+Olhando para as estatisticas t dos coeficientes podemos inferir que estas variáveis são não significantes, pois não rejeitamos a hipótese nula mesmo a um alfa de 10%. Porém, nesse caso, a estatística t não diz toda a historia. As três variáveis $bavg$, $hrunsyr$ e $rbisyr$ são altamente correlacionadas, portanto, temos um problema de multicolinearidade. Como vimos monitoria passada, isso infla a variância, diminuindo a estatística t. Nesse caso, o teste de hipótese conjunta é mais indicado para verificarmos a significância estatistica. Para realizar o teste utilizaremos a estatistica F, calculada da seguinte forma:
+
+$\LARGE{F \equiv \frac{(SQR_r - SQR_{ur})/q}{SQR_{ur}/gl_{ur}}}$
+
+&nbsp;
+
+Onde $SQR_r$ e $SQR_{ur}$ correspondem a soma dos quadrados dos resíduos dos modelos restritos e irrestritos, respectivamente. $q$ é o número de variáveis omitidas, e $gl_{ur}$ são os graus de liberdade do modelo irrestrito, $(n - k - 1)$. 
+
+Calculando o $SQR$ de cada modelo:
+
+```{r}
+# SQR do modelo irrestrito:
+SQR_irrestrito <- sum(resid(mod_irrestrito)^2)
+SQR_irrestrito
+
+# SQR do modelo restrito:
+SQR_restrito <- sum(resid(mod_restrito)^2)
+SQR_restrito
+```
+
+&nbsp;
+
+Repare que SQR aumenta conforme reduzimos o número de variáveis no modelo. Isso é um fato algébrico, SQR sempre aumentará conforme tiramos variáveis. A questão do teste é saber se esse aumento é suficientemente grande, relativamente ao SQR do modelo com todas as variáveis, para garantir a rejeição da hipótese nula. Voltando a fórmula da estatística F:
+
+```{r}
+#Calculando F
+estatistica_f <- ((SQR_restrito - SQR_irrestrito)/ 3 ) / (SQR_irrestrito/ df.residual(mod_irrestrito))
+estatistica_f
+```
+
+&nbsp;
+
+O valor critico, de uma distribuição F com (q,n - k - 1) graus de liberdade a 5% de significância é dado por:
+
+```{r}
+qf(.95, df1= 3 , df2= df.residual(mod_irrestrito) )
+```
+
+&nbsp;
+
+Como 9.55 > 2.63, rejeitamos s hipótese nula que as variáveis $bavg$, $hrunsyr$ e $rbisyr$ não são estatisticamente significantes conjuntamente. Nesse caso, devem ser mantidas no modelo.
+
+&nbsp;
+
+
+---
+  
+A biblioteca "car" permite realizar os testes de hipóteses conjuntas sem precisar calcular manualmente a estatística F:
+  
+
+```{r}
+linearHypothesis(mod_irrestrito,c("bavg","hrunsyr","rbisyr"))
+```
+  
+
+---
+
+&nbsp;
+&nbsp;
+
+##### **1.2 Teste de significância geral de uma regressão.**
+
+Podemos também realizar um teste sobre todas as variáveis inclusas no modelo, onde testamos a hipótese nula que todas as variáveis dos modelos são conjuntamente estatisticamente não significantes. De forma geral, testamos nesse caso:
+
+$H_0: \beta_1 = \beta_2 =...=\beta_k = 0$
+
+Assim como no teste anterior, também iremos testar um modelo restrito contra um irrestrito. A diferença é que retiraremos todas as variáveis explicativas no modelo restrito. Nesse caso, a estatística F será calculada da seguinte forma:
+
+$F = \frac{R^2/k}{(1-R^2)/gl}$
+
+Com isso, podemos calcular a significância da regressão como um todo. Utilizando o exemplo anterior:
+
+```{r}
+mod_irrestrito <- lm(log(salary) ~ years + gamesyr + bavg + hrunsyr + rbisyr,dados) 
+
+#Registrando o R quadrado da regressão:
+r_quadrado <- summary(mod_irrestrito)$r.squared
+
+#Calculando a estatística F:
+F_geral <-  ( r_quadrado / 5 ) / ((1-r_quadrado) / df.residual(mod_irrestrito))
+F_geral
+```
+
+&nbsp;
+
+O valor crítico de uma regressão F com (5,357) graus de liberdade a 5% de significância é:
+
+```{r}
+qf(.95, df1= 5 , df2= df.residual(mod_irrestrito) )
+```
+
+&nbsp;
+
+Como 117 > 2.24, rejeitamos com certeza a hipótese nula que todas as variáveis são conjuntamente não significantes. 
+
+---
+  
+Repare que o valor da estatística F já é calculado automaticamente na própria regressão:
+  
+
+```{r}
+mod_irrestrito %>% summary()
+
+#Extraindo a estatistica F:
+summary(mod_irrestrito)$fstatistic
+```
+
+  
+Podemos também utilizar a função linearHypothesis():
+
+  
+```{r}
+linearHypothesis(mod_irrestrito,c("years","gamesyr","bavg","hrunsyr","rbisyr"))
+```
+  
+---
+
+&nbsp;
+&nbsp;
+
+#### **2. Variáveis binárias(Dummies).**
+
+As variáveis binarias são fatores qualitativos que podemos incluir num modelo. Esses fatores frequentemente aparecem na forma de informação binária, também chamada de variável zero-um, que indica se a observação/pessoa se encaixa ou não na categoria. Também existem formas mais amplas, que envolvem múltiplas categorias, esse caso merece mais atenção quando utilizamos os softwares para rodar a regressão. No caso do R, precisamos certificar que o programa entende que a variável é categórica. Veja o exemplo:
+
+```{r}
+dados_dummies_1 <- wooldridge::wage1 %>% 
+  select(wage,educ,female)
+
+#Função str() mostra a estrutura dos dados, indicando como o R lê cada variável:
+dados_dummies_1 %>% str()
+```
+
+&nbsp;
+
+A coluna $female$ é uma variável categórica, que indica o sexo das pessoas entrevistadas. Repare que ao lado da variável o R lê a coluna como "int", isso quer dizer que o R entende que a coluna é numérica. Nesse caso, como é uma variável como apenas duas categorias, não vamos ter problemas na regressão. Porém, se tivermos mais do que duas possíveis categorias, o R entenderia que a variável é continua, e não categórica. Para certificar que não teremos problemas na regressão, utilizamos a função as_factor():
+
+```{r}
+#Transformando a coluna female num fator
+dados_dummies_1 <- dados_dummies_1 %>% 
+  mutate(female = as_factor(female))
+
+dados_dummies_1 %>% str()
+```
+
+&nbsp;
+
+Agora a coluna aparece como "Factor", indicando que esta é uma variável categórica, o R informa também os possíveis valores, nesse caso 0 ou 1. 
+
+&nbsp;
+&nbsp;
+
+##### **2.1 Uma única variável dummy independente.**
+
+Certificado que o R está lendo corretamente os dados, podemos incluir a variável na nossa regressão. Vamos estimar a seguinte modelo:
+
+$$wage = \beta_0 + \delta_0 female + \beta_1educ + u$$
+
+Estimando:
+
+```{r}
+dados_dummies_1 <- wooldridge::wage1
+
+mod_dummie_fem <- lm(wage ~ female + educ,dados_dummies_1)
+mod_dummie_fem %>% summary()
+```
+
+&nbsp;
+
+Como $female = 1$ quando a pessoa é mulher, e $female = 0$ quando é homem, o parâmetro $\delta_0$ é a diferença no salário por hora entre homens e mulheres, dado o mesmo grau de educação. Vejamos o que acontece com a regressão nesse caso:
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#Salvando intecepto e coef angular quando fem = 0:
+intercepto_male <- mod_dummie_fem$coefficients["(Intercept)"]
+inclinacao_male <- mod_dummie_fem$coefficients["educ"]
+
+#Quando fem = 1:
+intercepto_female <- mod_dummie_fem$coefficients[c("(Intercept)","female")] %>% sum()
+inclinacao_female <- mod_dummie_fem$coefficients["educ"]
+
+dados_dummies_1 %>% 
+  ggplot(aes(x = educ,y = wage)) +
+  geom_point(alpha = 0) + 
+  geom_abline(slope = inclinacao_male,intercept = intercepto_male) + 
+  geom_abline(slope = inclinacao_female,intercept = intercepto_female,alpha = 0.7) +
+  coord_cartesian(ylim = c(intercepto_female -4 ,10)) +
+  scale_x_continuous(breaks = 0,expand = c(0, 0)) + 
+  scale_y_continuous(expand = c(0, 0)) +
+  theme(axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title = element_text(hjust = 1),axis.line = element_line(colour = "black")) +
+  geom_segment(aes(x = 0,y = intercepto_male,xend = 0,yend = -7), alpha = 0.5, size =3) +
+  geom_segment(aes(x = 0,y = intercepto_female,xend = 0,yend = -7), colour = "red", size = 3) +
+  annotate(geom="text", x=4, y=6, label=TeX(r'(Homem: $wage = \beta_0 + \beta_1educ$)')) +
+  geom_segment(aes(x = 4, y = 5.5, xend = 5, yend = 3.3),
+                  arrow = arrow(length = unit(0.2, "cm"))) +
+  annotate(geom="text", x=10, y=-1, label=TeX(r'(Mulher: $wage = (\beta_0 + \delta_0) + \beta_1educ$)')) +
+  geom_segment(aes(x = 10, y = -0.6, xend = 9, yend = 2),
+                  arrow = arrow(length = unit(0.2, "cm"))) +
+  annotate(geom="text", x=1, y=intercepto_female - 2, label=TeX(r'($\beta_0 + \delta_0$)'), color = "red") 
+
+
+```
+
+&nbsp;
+
+
+A dummie desloca o intercepto das curvas que representam homens e mulheres. Como $female$ tem valor negativo, esse deslocamento é pra baixo, ou para a direita. Repare também que não incluímos explicitamente uma dummie para o sexo masculino, isso seria redundante, pois $\beta_0$ já é o intercepto para homens. Escolhemos, nesse caso, homens para ser o grupo-base ou o grupo de referência, isto é, o grupo contra o qual as comparações são feitas. Portanto, se a dummie possui x categorias, incluiremos sempre x-1 dummies no modelo, omitindo o grupo de referência. 
+
+&nbsp;
+&nbsp;
+
+
+##### **2.2 Variáveis dummy para categorias múltiplas.**
+
+Vejamos o caso em que possuímos múltiplas categorias. Utilizaremos aqui os dados "CPS1985", do pacote AER. Referente ao salário médio por hora dos trabalhadores americanos em 1985. Suponha que queremos estimar se o setor que o trabalhador atua tem impacto sobre o salário. Estimando o seguinte modelo:
+
+$$wage = \beta_0 + \beta_1 education + \beta_2sector + u$$
+
+A variável $sector$ é uma variável categórica que assume três valores: $sector = 1$ quando o trabalhador é da área industrial("manufacturing" nos dados); $sector = 2$ refere-se a área de construção (construction); e , por último, quando $sector = 3$ indica outras categorias (other). Da mesma forma que fizemos anteriormente, devemos nos certificar que a variável é um fator:
+
+```{r}
+data("CPS1985")
+
+#utilizando a variável as_factor para indicar que é uma variável categórica:
+dados_dummies_2 <- CPS1985 %>% 
+  select(wage,education,sector) %>% 
+  mutate(sector = as_factor(sector))
+
+dados_dummies_2 %>% str()
+```
+
+&nbsp;
+
+Feito isso, basta incluir sector na regressão:
+
+```{r}
+mod_dummies_setor <- lm(wage ~ education + sector,dados_dummies_2)
+mod_dummies_setor %>% summary()
+```
+
+&nbsp;
+
+Repare que automaticamente o R escolheu manufacturing como o grupo base, de fato ele sempre escolherá a primeira categoria. Podemos alterar a ordem dos fatores com a função fct_relevel do pacote forcats, que faz parte do tidyverse:
+
+```{r}
+#Alterando a ordem das dummies:
+dados_dummies_2 <- dados_dummies_2 %>% 
+  mutate(sector = fct_relevel(sector,c("other","manufacturing","construction")))
+
+#Rodando novamente a regressão:
+lm(wage ~ education + sector,dados_dummies_2) %>% 
+  summary()
+```
+
+&nbsp;
+
+Agora os grupos "manufacturing" e "construction" estão explícitos e o grupo "other" passou a ser o grupo-base, capturado pelo intercepto.
+
+

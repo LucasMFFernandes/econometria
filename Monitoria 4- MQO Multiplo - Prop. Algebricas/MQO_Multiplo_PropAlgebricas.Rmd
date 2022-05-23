@@ -1,0 +1,288 @@
+---
+title: ""
+output: html_document
+---
+
+```{css style settings, echo = FALSE}
+blockquote {
+    font-size: 14px;
+}
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.width=6, fig.height=4,fig.align = "center")
+```
+
+### Monitoria 5 - MQO - Análise de regressão múltipla.
+
+Nome: Lucas Martins de Farias Fernandes  
+Email: Lucasmffernandes@gmail.com  
+
+----
+
+```{r echo=TRUE, message=FALSE, warning=FALSE,results = 'hide'}
+#setup
+library(tidyverse)
+library(wooldridge)
+library(plotly)
+```
+
+----  
+
+
+#### **1. Análise de regressão múltipla.**
+
+Até o momento utilizamos regressões simples para explicar uma variável dependente, y, como função de única variável independente, x. Evidentemente, os modelos univariados são limitados e não permitem análises mais complexas. A análise de regressão múltipla permite a especificação de modelos com mais de uma variável independente, dessa forma, é possível controlar explicitamente outros fatores que, simultaneamente, afetam y.
+
+&nbsp;
+&nbsp;
+
+#### **1.1 Modelo com duas variáveis independentes.**
+
+Vejamos um exemplo de regressão múltipla, com duas variáveis independentes:
+
+$wage = \beta_0 + \beta_1 educ + \beta_2 exper + u$
+
+Comparado com a análise de regressão simples, o modelo múltiplo remove, nesse caso, a variável $exper$ do termo de erro e a coloca explicitamente na equação. Com isso, conseguimos, por exemplo, mensurar o efeito dos anos de educação mantendo a experiência fixa. Em uma regressão simples, teriamos que assumir, com base na quarta hipótese do teorema de GAUSS-MARKOV, que experiência é não correlacionado com educação para chegar numa relação *ceteris paribus* do efeito da educação sobre o salário. 
+
+---
+
+> Analogamente ao modelo de regressão simples, a hipótese fundamental sobre como u está relacionado as variáveis explicativas é:
+>
+> $E(u|x_1,x_2) = 0$
+>
+> Ou seja, para qualquer valor de $x_1$ e $x_2$ na população, o fator não observável médio é igual a zero. 
+
+---
+
+&nbsp;
+&nbsp;
+
+#### **1.2 Modelo com k variáveis independentes.**
+
+Generalizando, o modelo de regressão linear múltipla geral populacional com k variáveis, é descrito como:
+
+$y = \beta_0 + \beta_1x_1 + \beta_2x_2 + ... + \beta_kx_k + u$
+
+Onde:
+
+---
+
+> **Média Condicional zero**
+>
+> O erro u tem valor esperado igual a zero, dado quaisquer valores das variáveis independentes. Formalizando:
+> $E(u|x_1,x_2,...,x_k) = 0$
+
+---
+
+&nbsp;
+&nbsp;
+
+#### **1.3 Propriedades algébricas do modelo de regressão múltipla.**
+
+Extensões imediatas do caso da regressão simples, os valores estimados do MQO múltiplo têm algumas propriedades importantes:
+
+---
+
+A média amostral dos resíduos é zero
+
+$\bar{\hat{u}} = \frac{\sum y_i - \hat{y_i}}{n} = 0$
+
+Decorre disso que $\bar{y} = \bar{\hat{y}}$
+
+---
+
+A covariância amostral entre cada variável independente é zero.
+
+$Cov(x_j,\hat{u}) = 0 \ \ \ \forall j=1,..,k$
+
+---
+
+O ponto $(\bar{x_1},\bar{x_2},...,\bar{x_k},\bar{y})$ está sempre sobre a reta de regressão de MQO:
+
+$\hat{y} = \hat{\beta_0} + \hat{\beta_1}x_1 + \hat{\beta_2}x_2 + ... + \hat{\beta_k}x_k$
+
+---
+
+&nbsp;
+&nbsp;
+
+
+#### **2. Interpretação da equação de regressão de MQO.**
+
+Partindo para a prática, vamos estimar o modelo especificado anteriormente:
+
+$wage = \beta_0 + \beta_1 educ + \beta_2 exper + u$
+
+No R, utilizaremos a mesma função lm() para regredir modelos multivariados:
+
+```{r}
+dados <- wage1
+mod_mult <- lm(wage ~ educ + exper,dados)
+mod_mult %>% summary()
+```
+
+O intercepto, nesse caso, é o valor previsto de y quando $educ$ e $exper$ são nulos. Os coeficientes $\hat{\beta_1}$ e $\hat{\beta_2}$ tem interpretação de efeito parcial, ou *ceteris paribus*. Dessa forma, podemos escrever:
+
+$\Delta\hat{wage} = \hat{\beta_1}\Delta educ_1 + \hat{\beta_2}\Delta exper_2$
+
+Com isso, podemos obter a variação prevista do salário dadas as variações das explicativas. O mais importante dessa interpretação é que agora podemos controlar outros fatores explícitos no nosso modelo. Por exemplo, supondo que queremos o efeito, *ceteris paribus*, de $educ$ sobre $wage$, basta manter $exper$ fixo, de modo que $\hat{\beta_2}\Delta exper_2 = 0$, então:
+
+$\Delta\hat{wage} = \hat{\beta_1}\Delta educ_1$
+
+Substituindo $\hat{\beta_1}$ pelo coeficiente estimado:
+
+$\Delta\hat{wage} = 0.65 \Delta educ_1$
+
+Ou seja, *ceteris paribus*, um aumento de 1 unidade de $educ$ leva a um aumento de 0.65 do salário. Podemos obter também o efeito da variação de mais de uma variável independente, supondo: $\Delta educ_1 =  \Delta exper_2 = 1$, então a variação de $wage$, ou y, é dada por:
+
+$\Delta\widehat{wage} = 0.65(1) + 0.07(1) = 0.71437$
+
+&nbsp;
+&nbsp;
+
+---
+
+> **Curiosidade**
+>
+> Na regressão simples é fácil de observar a reta de regressão, ao aumentar o número de variáveis perdemos a habilidade de observar os valores que estimamos. Com duas variáveis ainda conseguimos observar, porém, não temos mais uma reta e sim um plano de regressão:  
+
+```{r echo=FALSE, fig.align='center',fig.width=7, fig.height=5}
+cf.mod <- coef(mod_mult)
+x1.seq <- seq(min(dados[,"educ"]),max(dados[,"educ"]),length.out=25)
+x2.seq <- seq(min(dados[,"exper"]),max(dados[,"exper"]),length.out=25)
+z <- t(outer(x1.seq, x2.seq, function(x,y) cf.mod["(Intercept)"] + cf.mod["educ"]*x + cf.mod["exper"]*y))
+
+plot_ly(x=x1.seq,y=x2.seq, z=z,colors = "red",opacity = 0.7,name = "Reg.Plane",type="surface") %>% 
+  add_trace(data=dados, name='WAGE1', x=dados[,"educ"], y=dados[,"exper"], z=dados[,"wage"], mode="markers",
+            type="scatter3d",marker = list(color="black", opacity=0.75, symbol=105, size=4)) %>%
+  layout(
+    showlegend = FALSE,
+    scene = list(
+      aspectmode = "manual", aspectratio = list(x=1, y=1.3, z=1),
+      xaxis = list(title = "educ"),
+      yaxis = list(title = "exper"),
+      zaxis = list(title = "wage"),
+      camera = list(eye = list(x = -2,y = -0.1, z=0.05),
+                    center = list(x = 0,y = 0,z = 0))
+      )
+    ) %>% 
+  hide_colorbar() %>%
+  config(showLink = F, displayModeBar = T) %>% 
+  htmltools::div(align="center") 
+```
+
+&nbsp;
+&nbsp;
+  
+#### **3. Valores ajustados e resíduos.**
+
+**Valores ajustados**
+
+De forma geral, os valores estimados são calculados através da fórmula:
+
+$\hat{y} = \hat{\beta_0} + \hat{\beta_1}x_1 + \hat{\beta_2}x_2 + ... + \hat{\beta_k}x_k$
+
+No nosso exemplo, calculamos:
+
+$\hat{wage} = \hat{\beta_0} + \hat{\beta_1}educ_i + \hat{\beta_2}exper_i$
+
+```{r}
+#Salvando coeficientes no env.
+beta_0 <- coefficients(mod_mult)[1]
+beta_educ <- coefficients(mod_mult)["educ"]
+beta_exper <- coefficients(mod_mult)["exper"]
+
+# Utilizando a função mutate() para calcular os valores estiamdos:
+dados <- dados %>% 
+  select(wage,educ,exper) %>% 
+  mutate(
+    fitted = beta_0 + beta_educ*educ + beta_exper*exper
+    )
+```
+
+**Resíduos**
+
+Assim como na regressão simples, os resíduos são as diferenças entre os valores estimados e os valores observados na amostra. Formalizando:
+
+$\hat{u_i} = y_{i} - \hat{y_i}$
+
+```{r}
+#calculando residuos
+dados <- dados %>% 
+  mutate(resid = wage - fitted)
+```
+
+
+&nbsp;
+&nbsp;
+
+#### **4. Qualidade de ajuste.**
+
+Assim como na regressão simples, podemos definir:
+
+Soma dos quadrados total:  \
+$SQT = \sum^n_{i=1}(y_{i} - \bar{y})^2$
+
+```{r}
+SQT <- sum((dados[,"wage"] - mean(dados[,"wage"]))^2)
+SQT
+```
+
+
+Soma dos quadrados explicada:  \
+$SQE = \sum^n_{i=1}(\hat{y_{i}} - \bar{y})^2$
+
+```{r}
+SQE <- sum((dados[,"fitted"] - mean(dados[,"wage"]))^2)
+SQE
+```
+
+
+Soma dos quadrados dos resíduos:  \
+$SQR = \sum^n_{i=1}\hat{u_{i}}^2$
+
+```{r}
+SQR <- sum(dados[,"resid"]^2)
+SQR
+```
+
+Da mesma forma, a variação total em, $y$, é a soma das variações totais em,$\hat{y_i}$ , e em $\hat{u_i}$, ou seja:
+
+$SQT = SQE + SQR$
+
+Com isso, podemos calcular o $R^2$ da regressão:
+
+$R^2 \equiv SQE/SQT = 1 - SQR/SQT$
+
+```{r}
+r_sqrd <- 1-(SQR/SQT)
+r_sqrd
+```
+
+
+Comparando o $R^2$ da regressão múltipla com um modelo de regressão simples:
+
+```{r}
+mod_simples <- lm(wage ~ educ,dados)
+mod_simples %>% summary()
+```
+
+Ao adicionar a variável $exper$, o $R^2$ aumentou, porém, isso não significa, por si só, que o modelo múltiplo é melhor que o modelo simples. De fato, o $R^2$ nunca diminui, ele sempre aumentará quando outra variável independente for adicionada à regressão. Isso ocorre por definição, pois a SQR nunca aumenta quando adicionamos novas variáveis ao modelo. Em virtude disso, o $R^2$ sozinho não é um bom instrumento para decidirmos se nosso modelo está bem especificado. Devemos, para isso, utilizar os testes de significância estatística para decidir sobre a inclusão ou não da variável explicativa.
+
+
+#### **5. O $R^2$ ajustado.**
+
+Uma medida mais interessante que o $R^2$ tradicional é o $\bar{R^2}$ ajustado. Podemos calcular o $\bar{R^2}$, da seguinte forma:
+
+$\bar{R^2} = 1 - \frac{(1-R^2)(n-1)}{n-k-1}$
+
+O termo $(n-k-1)$ impõe uma penalidade à inclusão de uma variável independente adicional no modelo. Com isso, ao inserir uma explicativa, $R^2$ aumenta, porém, $(n-k-1)$, diminui. Dessa forma, o R-quadrado ajustado pode aumentar ou diminuir com a inclusão de uma variável independente ao modelo. De forma geral o R-quadrado ajustado não é melhor que o $R^2$, nenhum dos dois são estimadores não viesados do R-quadrado populacional, porém, a penalidade na inclusão de uma explicativa, torna o R-quadrado ajustado uma medida mais interessante em modelos multivariados. Calculando $\bar{R^2}$:
+
+```{r}
+1 - (1-r_sqrd)*(nrow(dados - 1))/(nrow(dados) - 2 - 1)
+```
+
+
+
